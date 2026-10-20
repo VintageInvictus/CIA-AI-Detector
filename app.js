@@ -275,6 +275,208 @@ $('#clearAll').addEventListener('click', () => {
   $('#applicant').value = ''; $('#baseline').value = ''; renderAnswers(); run(); $('#a-0').focus();
 });
 
+/* ---------- Importing a Google Forms export (.zip or .csv) ---------- */
+// The file is read in memory only. It is never uploaded or saved.
+let applicants = [], currentApplicant = null, activeOption = -1, shown = [];
+
+function parseCSV(text) {
+  text = text.replace(/^﻿/, '');
+  const rows = []; let row = [], field = '', quoted = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (quoted) {
+      if (c === '"') { if (text[i + 1] === '"') { field += '"'; i++; } else quoted = false; }
+      else field += c;
+    } else if (c === '"') quoted = true;
+    else if (c === ',') { row.push(field); field = ''; }
+    else if (c === '\n' || c === '\r') {
+      if (c === '\r' && text[i + 1] === '\n') i++;
+      row.push(field); rows.push(row); row = []; field = '';
+    } else field += c;
+  }
+  if (field !== '' || row.length) { row.push(field); rows.push(row); }
+  return rows.filter(r => r.some(v => v.trim()));
+}
+
+// Minimal zip reader: finds the first .csv inside and inflates it with the browser's built-in decompressor.
+async function csvFromZip(buf) {
+  const v = new DataView(buf), u8 = new Uint8Array(buf), dec = new TextDecoder();
+  let end = -1;
+  for (let i = buf.byteLength - 22; i >= Math.max(0, buf.byteLength - 65557); i--) {
+    if (v.getUint32(i, true) === 0x06054b50) { end = i; break; }
+  }
+  if (end < 0) throw new Error("That file isn't a valid .zip.");
+  let p = v.getUint32(end + 16, true);
+  for (let k = v.getUint16(end + 10, true); k > 0; k--) {
+    if (v.getUint32(p, true) !== 0x02014b50) break;
+    const method = v.getUint16(p + 10, true), size = v.getUint32(p + 20, true);
+    const nameLen = v.getUint16(p + 28, true), extraLen = v.getUint16(p + 30, true), commentLen = v.getUint16(p + 32, true);
+    const offset = v.getUint32(p + 42, true);
+    const name = dec.decode(u8.subarray(p + 46, p + 46 + nameLen));
+    p += 46 + nameLen + extraLen + commentLen;
+    if (!/\.csv$/i.test(name)) continue;
+    const start = offset + 30 + v.getUint16(offset + 26, true) + v.getUint16(offset + 28, true);
+    const data = u8.subarray(start, start + size);
+    if (method === 0) return dec.decode(data);
+    if (method === 8) return new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).text();
+    throw new Error("This .zip uses a compression type the site can't read. Unzip it and drop the .csv instead.");
+  }
+  throw new Error('No .csv file was found inside that .zip.');
+}
+
+// Google Forms timestamps vary by locale: 2026/10/13 11:15:27 PM AST, 10/13/2026 23:15:27, 13/10/2026 23:15:27 ...
+function parseStamp(s) {
+  const m = (s || '').match(/(\d{1,4})[\/.-](\d{1,2})[\/.-](\d{1,4})[ ,T]+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*([AP]\.?M\.?)?/i);
+  if (!m) return NaN;
+  let [, a, b, c, h, mi, sec, ap] = m; a = +a; b = +b; c = +c; h = +h;
+  let y, mo, d;
+  if (a > 31) { y = a; mo = b; d = c; } else { y = c; if (a > 12) { d = a; mo = b; } else { mo = a; d = b; } }
+  if (y < 100) y += 2000;
+  if (ap) { const pm = /^p/i.test(ap); if (pm && h < 12) h += 12; if (!pm && h === 12) h = 0; }
+  return Date.UTC(y, mo - 1, d, h, +mi, +(sec || 0));
+}
+
+function buildApplicants(rows) {
+  const [header, ...data] = rows;
+  if (!header || !data.length) throw new Error('That file has no responses in it.');
+  const cols = header.map((h, i) => {
+    const lens = data.map(r => (r[i] || '').trim().length).filter(Boolean).sort((x, y) => x - y);
+    return { i, h: h.trim(), med: lens.length ? lens[lens.length >> 1] : 0, max: lens.length ? lens[lens.length - 1] : 0 };
+  });
+  const short = c => c.med < 40;
+  const find = re => cols.find(c => re.test(c.h) && short(c));
+  const stamp = cols.find(c => /^time\s*stamp$/i.test(c.h));
+  const roblox = find(/roblox/i), discord = find(/discord/i), email = find(/e-?mail/i), named = find(/\b(user\s*name|name)\b/i);
+  const ids = new Set([stamp, roblox, discord, email, named].filter(Boolean).map(c => c.i));
+  const answerCols = cols.filter(c => !ids.has(c.i) && (c.med >= 40 || c.max >= 120) && !/acknowledg|i agree|consent/i.test(c.h));
+  if (!answerCols.length) throw new Error("Couldn't find any written answers in that file.");
+  const primary = roblox || named || discord || email;
+  return data.map((r, n) => {
+    const get = c => c ? (r[c.i] || '').trim() : '';
+    const t = parseStamp(get(stamp));
+    const name = get(primary) || `Applicant ${n + 1}`;
+    const alt = [discord, roblox, email].filter(c => c && c !== primary).map(get).find(Boolean) || '';
+    return {
+      id: n, name, alt, t, order: n,
+      date: isNaN(t) ? get(stamp) : new Date(t).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }),
+      answers: answerCols.map(c => ({ q: c.h, a: get(c) })).filter(x => x.a)
+    };
+  });
+}
+
+async function importFile(file) {
+  const err = $('#importError'); err.hidden = true;
+  try {
+    const buf = await file.arrayBuffer();
+    const isZip = /\.zip$/i.test(file.name) || new Uint8Array(buf.slice(0, 2)).join() === '80,75';
+    const text = isZip ? await csvFromZip(buf) : new TextDecoder().decode(buf);
+    applicants = buildApplicants(parseCSV(text));
+  } catch (e) {
+    err.textContent = e.message || "Couldn't read that file. Make sure it's the .zip or .csv from Google Forms.";
+    err.hidden = false; return;
+  }
+  const formName = file.name.replace(/(\.csv)?(\.zip)?$/i, '').replace(/\s*\((responses|.*?)\)\s*$/i, '').trim();
+  if (!$('#division').value.trim()) {
+    $('#division').value = formName.replace(/\s+application$/i, '');
+    store.set('cad.division', $('#division').value);
+  }
+  $('#fileInfo').textContent = `${formName} · ${applicants.length} applicant${applicants.length === 1 ? '' : 's'}`;
+  $('#dropzone').hidden = true; $('#picker').hidden = false;
+  $('#appSearch').value = ''; $('#appSearch').focus();
+  openList();
+}
+
+const norm = s => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+function lev(a, b) {
+  let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    for (let j = 1; j <= b.length; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    prev = cur;
+  }
+  return prev[b.length];
+}
+// Higher is a closer match: prefix, then substring, then letters in order, then small typos.
+function matchScore(q, s) {
+  const t = norm(s);
+  if (!t) return 0;
+  if (t.startsWith(q)) return 100;
+  const at = t.indexOf(q);
+  if (at >= 0) return 85 - at * 0.1;
+  let j = 0;
+  for (const ch of t) if (ch === q[j] && ++j === q.length) break;
+  if (j === q.length && q.length >= 3) return 60;
+  if (q.length >= 3) {
+    let best = Infinity;
+    for (let len = q.length - 1; len <= q.length + 1; len++)
+      for (let k = 0; k + len <= t.length; k++) best = Math.min(best, lev(q, t.slice(k, k + len)));
+    if (best <= (q.length <= 4 ? 1 : 2)) return 40 - best * 10;
+  }
+  return 0;
+}
+
+function sortedApplicants() {
+  const mode = $('#appSort').value;
+  const byTime = (a, b) => (isNaN(a.t) || isNaN(b.t)) ? a.order - b.order : a.t - b.t;
+  const list = [...applicants];
+  if (mode === 'az') list.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+  else if (mode === 'old') list.sort(byTime);
+  else list.sort((a, b) => byTime(b, a));
+  return list;
+}
+function renderList() {
+  const q = norm($('#appSearch').value);
+  let list = sortedApplicants();
+  if (q) list = list.map(a => ({ a, s: Math.max(matchScore(q, a.name), matchScore(q, a.alt)) }))
+    .filter(x => x.s > 0).sort((x, y) => y.s - x.s).map(x => x.a);
+  shown = list;
+  if (activeOption >= shown.length) activeOption = shown.length - 1;
+  $('#appList').innerHTML = shown.length
+    ? shown.map((a, k) => `<li role="option" id="opt-${a.id}" data-id="${a.id}" aria-selected="${currentApplicant === a.id}" class="${k === activeOption ? 'active' : ''}"><span class="opt-name">${esc(a.name)}</span><span class="opt-meta">${esc([a.alt, a.date].filter(Boolean).join(' · '))}</span></li>`).join('')
+    : '<li class="opt-empty" role="presentation">No matching applicants</li>';
+  $('#appSearch').setAttribute('aria-activedescendant', activeOption >= 0 && shown[activeOption] ? 'opt-' + shown[activeOption].id : '');
+  const act = $('#appList .active'); if (act) act.scrollIntoView({ block: 'nearest' });
+}
+function openList() { activeOption = -1; $('#appList').hidden = false; $('#appSearch').setAttribute('aria-expanded', 'true'); renderList(); }
+function closeList() { $('#appList').hidden = true; $('#appSearch').setAttribute('aria-expanded', 'false'); }
+function selectApplicant(a) {
+  currentApplicant = a.id;
+  $('#appSearch').value = a.name; closeList();
+  state = { applicant: a.alt ? `${a.name} (${a.alt})` : a.name, answers: a.answers.map(x => ({ ...x })), baseline: '', example: false };
+  $('#applicant').value = state.applicant; $('#baseline').value = '';
+  renderAnswers(); run();
+}
+
+$('#fileInput').addEventListener('change', e => { const f = e.target.files[0]; if (f) importFile(f); e.target.value = ''; });
+const dz = $('#dropzone');
+['dragenter', 'dragover'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add('is-over'); }));
+['dragleave', 'drop'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove('is-over'); }));
+dz.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) importFile(f); });
+$('#changeFile').addEventListener('click', () => {
+  applicants = []; currentApplicant = null; closeList();
+  $('#picker').hidden = true; $('#dropzone').hidden = false; $('#fileInput').click();
+});
+$('#appSort').addEventListener('change', () => { if (!$('#appList').hidden) renderList(); });
+$('#appSearch').addEventListener('focus', openList);
+$('#appSearch').addEventListener('click', () => { if ($('#appList').hidden) openList(); });
+$('#appSearch').addEventListener('input', () => { activeOption = 0; $('#appList').hidden = false; $('#appSearch').setAttribute('aria-expanded', 'true'); renderList(); });
+$('#appSearch').addEventListener('keydown', e => {
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    if ($('#appList').hidden) openList();
+    if (!shown.length) return;
+    activeOption = e.key === 'ArrowDown' ? Math.min(shown.length - 1, activeOption + 1) : Math.max(0, activeOption - 1);
+    renderList();
+  } else if (e.key === 'Enter') {
+    if (!$('#appList').hidden && shown[activeOption]) { e.preventDefault(); selectApplicant(shown[activeOption]); }
+  } else if (e.key === 'Escape') closeList();
+});
+$('#appSearch').addEventListener('blur', () => setTimeout(closeList, 120));
+$('#appList').addEventListener('mousedown', e => {
+  const li = e.target.closest('[data-id]'); if (!li) return;
+  e.preventDefault(); selectApplicant(applicants.find(a => a.id === +li.dataset.id));
+});
+
 let timer;
 function schedule() { clearTimeout(timer); timer = setTimeout(run, 300); }
 
@@ -342,7 +544,7 @@ function run() {
   if (res.W < 80) warnings.push(['Short answers.', 'Under 80 words, so treat the result as weak.']);
   if (!hasBase) warnings.push(state.baseline.trim()
     ? ['Not enough Discord messages.', `${baseProf.words} words so far; the comparison needs 40.`]
-    : ['No Discord messages.', 'Add some in step 3 for the most reliable check.']);
+    : ['No Discord messages.', 'Add some in step 4 for the most reliable check.']);
   let band = res.band;
   if (res.W < 40 && band === 'high') band = 'mid';
 
@@ -404,7 +606,7 @@ function run() {
     const sp = x.r.sig.find(z => z.id === 'specific');
     if (sp && sp.strength >= 0.6 && fu.length < 5) fu.push(`About ${x.q ? `“${x.q}”` : `answer ${x.i + 1}`}: give a real example. Which group or event was it, who was involved, and roughly when?`);
   }
-  fu.push('Answer this in the ticket within 5 minutes: “Describe the last training or patrol you attended and one thing you would change about it.” Then paste the reply into step 3.');
+  fu.push('Answer this in the ticket within 5 minutes: “Describe the last training or patrol you attended and one thing you would change about it.” Then paste the reply into step 4.');
   fu.push('How long did the application take you, and where did you write it?');
   $('#followups').innerHTML = fu.map(q => `<li>${esc(q)}</li>`).join('');
 
