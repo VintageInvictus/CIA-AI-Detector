@@ -59,6 +59,8 @@ Share that link with the other Headquarters members.
 
 ## Update it later
 
+When `styles.css` or `app.js` changes, raise the `?v=` number on their links in `index.html` (for example `app.js?v=3` to `app.js?v=4`). Otherwise browsers can keep using the old copy for a while and the update seems not to work.
+
 Open the repository on GitHub, click **Add file**, then **Upload files**, drag in the changed files and click **Commit changes**. The live site updates within a minute or two. Ask people to refresh if they still see the old version.
 
 ## Preview on this computer
