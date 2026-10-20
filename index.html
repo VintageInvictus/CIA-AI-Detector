@@ -4,11 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>CIA AI Detector</title>
-  <meta name="description" content="Screen recruitment applications for AI-written answers. Shows the evidence, compares against the applicant's Discord writing, and gives follow-up questions. Runs entirely in your browser.">
+  <meta name="description" content="Screen recruitment applications for AI-written answers. Runs entirely in your browser.">
   <meta name="theme-color" content="#0B1B33">
   <meta property="og:type" content="website">
   <meta property="og:title" content="CIA AI Detector">
-  <meta property="og:description" content="Screen recruitment applications for AI-written answers. Evidence, Discord comparison and follow-up questions. Nothing leaves your browser.">
+  <meta property="og:description" content="Screen recruitment applications for AI-written answers. Runs entirely in your browser.">
   <meta name="twitter:card" content="summary">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -20,12 +20,12 @@
     try { var t = localStorage.getItem('cad.theme'); if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t); } catch (e) {}
   </script>
 </head>
-<body id="top">
+<body>
   <a class="skip-link" href="#screener">Skip to the screener</a>
 
   <div class="band">
     <header class="masthead container">
-      <a class="brand" href="#top" aria-label="CIA AI Detector, back to top">
+      <a class="brand" href="./" aria-label="CIA AI Detector">
         <svg class="emblem" viewBox="0 0 48 48" aria-hidden="true">
           <circle cx="24" cy="24" r="21" fill="none" stroke="currentColor" stroke-width="2"/>
           <circle cx="24" cy="24" r="16" fill="none" stroke="currentColor" stroke-width="1" opacity=".55"/>
@@ -36,30 +36,16 @@
         </svg>
         <span class="brand-text"><strong>CIA AI Detector</strong><small>Headquarters · Application review</small></span>
       </a>
-      <nav class="nav" aria-label="Main">
-        <a href="#screener">Screener</a>
-        <a href="#how-it-works">How it works</a>
-        <a href="#procedure">Procedure</a>
-        <button type="button" class="theme-toggle" id="themeToggle" aria-label="Switch to dark mode">
-          <svg viewBox="0 0 24 24" aria-hidden="true" class="icon-moon"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" fill="currentColor"/></svg>
-          <svg viewBox="0 0 24 24" aria-hidden="true" class="icon-sun"><circle cx="12" cy="12" r="4.5" fill="currentColor"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-        </button>
-      </nav>
+      <button type="button" class="theme-toggle" id="themeToggle" aria-label="Switch to dark mode">
+        <svg viewBox="0 0 24 24" aria-hidden="true" class="icon-moon"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" fill="currentColor"/></svg>
+        <svg viewBox="0 0 24 24" aria-hidden="true" class="icon-sun"><circle cx="12" cy="12" r="4.5" fill="currentColor"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
     </header>
-
-    <section class="intro container" aria-labelledby="intro-h">
-      <p class="kicker">Recruitment screening</p>
-      <h1 id="intro-h">Check applications for AI writing before you accept them.</h1>
-      <p class="lede">Paste an applicant's answers and a few of their Discord messages. The detector marks the patterns AI tends to leave, compares the form with how the applicant normally writes, and gives you follow-up questions to settle it.</p>
-      <ul class="facts">
-        <li><b>Private.</b> Everything runs in your browser. Nothing you paste is uploaded or stored on a server.</li>
-        <li><b>Shows its evidence.</b> Every flag is marked in the text, so you can explain a decision.</li>
-        <li><b>Built for follow-up.</b> A high result means "verify in person", never "deny".</li>
-      </ul>
-    </section>
   </div>
 
   <main id="screener" class="container workspace" tabindex="-1">
+    <h1 class="sr-only">CIA AI Detector</h1>
+
     <!-- INPUT -->
     <section class="panel" aria-labelledby="in-h">
       <div class="panel-bar">
@@ -72,23 +58,21 @@
           <div class="row-2">
             <div class="field">
               <label for="division">Division name</label>
-              <input type="text" id="division" autocomplete="off" placeholder="e.g. National Clandestine Service">
+              <input type="text" id="division" autocomplete="off" placeholder="National Clandestine Service">
             </div>
             <div class="field">
               <label for="applicant">Applicant</label>
-              <input type="text" id="applicant" autocomplete="off" placeholder="Roblox or Discord username">
+              <input type="text" id="applicant" autocomplete="off" placeholder="Username">
             </div>
           </div>
           <div class="field">
             <label for="terms">Division terms</label>
-            <input type="text" id="terms" autocomplete="off" aria-describedby="terms-hint" placeholder="e.g. Site B, NCS, Director, field training">
-            <p class="hint" id="terms-hint">Comma-separated ranks, places and staff names. Real members tend to mention these. Division name and terms are saved in this browser for next time.</p>
+            <input type="text" id="terms" autocomplete="off" placeholder="Site B, NCS, Director, field training">
           </div>
         </fieldset>
 
         <fieldset class="block">
           <legend><span class="step">2</span> Application answers</legend>
-          <p class="hint">One box per question from the Google Form. Long answers matter most; skip one-word fields.</p>
           <div id="answers" class="answers"></div>
           <button type="button" class="btn" id="addAnswer">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
@@ -97,14 +81,13 @@
         </fieldset>
 
         <fieldset class="block">
-          <legend><span class="step">3</span> Their normal writing</legend>
-          <p class="hint" id="baseline-hint">Paste 10 to 20 of their recent Discord messages, one per line (at least 40 words). This is the most reliable check: it compares the form with how they write every day.</p>
-          <textarea id="baseline" rows="6" aria-describedby="baseline-hint" aria-label="Their recent Discord messages"></textarea>
+          <legend><span class="step">3</span> Their Discord messages</legend>
+          <textarea id="baseline" rows="6" aria-label="Their Discord messages" placeholder="Paste 10–20 recent messages, one per line"></textarea>
         </fieldset>
 
         <div class="actions">
-          <button type="button" class="btn" id="exAI">Try an AI-written example</button>
-          <button type="button" class="btn" id="exHuman">Try a genuine example</button>
+          <button type="button" class="btn" id="exAI">Load AI example</button>
+          <button type="button" class="btn" id="exHuman">Load genuine example</button>
           <button type="button" class="btn btn-quiet" id="clearAll">Clear case</button>
         </div>
       </div>
@@ -131,6 +114,7 @@
             <div class="meter" aria-hidden="true"><i id="needle" style="left:0%"></i></div>
             <div class="meter-scale" aria-hidden="true"><span>Low</span><span>Read closely</span><span>Verify in person</span></div>
             <p class="index" id="indexLine"></p>
+            <p class="caveat">Not proof. Verify with the applicant before denying.</p>
           </div>
         </div>
         <div class="warnings" id="warnings"></div>
@@ -141,13 +125,12 @@
         </div>
 
         <div class="block" id="baseSec">
-          <h3>Form vs. their Discord writing</h3>
+          <h3>Form vs. their Discord</h3>
           <div class="table-wrap"><table id="baseTable"></table></div>
         </div>
 
         <div class="block" id="perSec">
           <h3>Per answer</h3>
-          <p class="hint">An answer that scores far above the others was often written differently.</p>
           <div class="per" id="per"></div>
         </div>
 
@@ -164,75 +147,14 @@
 
         <div class="block">
           <h3>Follow-up questions</h3>
-          <p class="hint">Ask these live in a ticket or voice call, with no time to look things up. Someone who wrote their own answers can explain them easily.</p>
           <ol class="followups" id="followups"></ol>
         </div>
       </div>
     </section>
   </main>
 
-  <section id="how-it-works" class="container section" aria-labelledby="how-h">
-    <div class="section-head">
-      <p class="kicker">How it works</p>
-      <h2 id="how-h">Nine signals, each with its reasons shown</h2>
-      <p class="lede-dark">No single signal means much. The result rises only when several independent signals agree. The index counts patterns; it is not a probability.</p>
-    </div>
-    <div class="signal-grid">
-      <article><h3>Different from their Discord</h3><span class="weight w-high">High weight</span><p>Compares vocabulary level, AI-typical words, dashes, lowercase "i", skipped apostrophes and slang between the form and their messages. A jump in vocabulary is hard to fake.</p></article>
-      <article><h3>AI-typical vocabulary</h3><span class="weight w-high">High weight</span><p>Words chatbots overuse, such as <i>furthermore</i>, <i>foster</i>, <i>paramount</i> and <i>thrive</i>, counted per 100 words.</p></article>
-      <article><h3>Pasted formatting</h3><span class="weight w-high">High weight</span><p>Literal <code>**bold**</code> or <code>#</code> heading markers. Google Forms doesn't render them, so they usually come from copying a chatbot reply.</p></article>
-      <article><h3>Stock application phrases</h3><span class="weight w-mid">Medium weight</span><p>Phrases like "valuable asset", "commitment to excellence" and "this experience taught me".</p></article>
-      <article><h3>Even sentence rhythm</h3><span class="weight w-mid">Medium weight</span><p>People mix short and long sentences. AI text tends to keep them all about the same length.</p></article>
-      <article><h3>Little concrete detail</h3><span class="weight w-mid">Medium weight</span><p>Few names, numbers, dates or division terms. Generic answers that could fit any group are typical of AI.</p></article>
-      <article><h3>Em dashes</h3><span class="weight w-low">Low weight</span><p>A common ChatGPT habit. It counts for more when the applicant never uses dashes in Discord.</p></article>
-      <article><h3>Lists of three</h3><span class="weight w-low">Low weight</span><p>Repeated "X, Y, and Z" lists of qualities, a pattern AI leans on.</p></article>
-      <article><h3>No casual traces</h3><span class="weight w-low">Low weight</span><p>Flawless capitalization and punctuation. Weak on its own, since people tidy up for applications.</p></article>
-    </div>
-  </section>
-
-  <section id="procedure" class="container section" aria-labelledby="proc-h">
-    <div class="section-head">
-      <p class="kicker">Procedure</p>
-      <h2 id="proc-h">Using results fairly across divisions</h2>
-    </div>
-    <div class="guide">
-      <article class="panel guide-card">
-        <div class="panel-bar"><h3>Reading the result</h3></div>
-        <ul class="panel-body">
-          <li><b>Low:</b> process the application normally.</li>
-          <li><b>Read closely:</b> some patterns showed up. Compare with their Discord messages yourself before deciding.</li>
-          <li><b>Verify in person:</b> several independent patterns showed up. Run the follow-up before you accept or deny.</li>
-          <li>No tool, paid or free, can prove AI use from text alone. Deny on the follow-up, never on the score.</li>
-          <li>Formal writers, non-native English speakers and Grammarly users can trip some signals. The Discord comparison separates them.</li>
-        </ul>
-      </article>
-      <article class="panel guide-card">
-        <div class="panel-bar"><h3>Follow-up steps</h3></div>
-        <ol class="panel-body">
-          <li>Open a ticket with the applicant and tell them it's a standard verification step.</li>
-          <li>Ask two or three of the generated questions. Watch for hesitation over their own words.</li>
-          <li>Give them one new question to answer in the ticket within 5 minutes. Paste the reply into step 3 and run it again.</li>
-          <li>Decide on the full picture and post the copied report with your decision in your staff channel.</li>
-        </ol>
-      </article>
-      <article class="panel guide-card">
-        <div class="panel-bar"><h3>Make the form harder to fake</h3></div>
-        <ul class="panel-body">
-          <li><b>Ask for things only members know:</b> "Name a training you attended, who hosted it, and one thing you learned."</li>
-          <li><b>Ask for a moment, not an opinion:</b> "Describe the last raid you were in and one mistake your team made."</li>
-          <li><b>Add a notice:</b> "AI-written answers are denied. You may be asked to explain any answer in voice."</li>
-          <li><b>Use a scenario that needs your SOP.</b> AI can't guess your internal rules.</li>
-          <li><b>Calibrate:</b> run 5 to 10 older applications and a few ChatGPT-written ones through it to learn your normal range.</li>
-        </ul>
-      </article>
-    </div>
-  </section>
-
   <footer class="footer">
-    <div class="container footer-inner">
-      <p><strong>CIA AI Detector</strong> is a fan-made tool for a Roblox military-simulation group. It is not affiliated with the U.S. Central Intelligence Agency.</p>
-      <p>Everything you paste stays in your browser. Results are screening indicators, not proof.</p>
-    </div>
+    <p class="container">Fan-made tool for a Roblox roleplay group. Not affiliated with the U.S. Central Intelligence Agency. Everything you paste stays in your browser.</p>
   </footer>
 
   <script src="app.js"></script>

@@ -100,15 +100,14 @@ function profile(text) {
 function compareBaseline(app, base) {
   const rows = [];
   const pct = x => x == null ? '–' : Math.round(x * 100) + '%';
-  const add = (label, b, a, flag, w, note) => rows.push({ label, b, a, flag, w, note });
-  add('Long words (9+ letters)', pct(base.longRatio), pct(app.longRatio),
-      app.longRatio >= 2 * base.longRatio && app.longRatio >= 0.1, 1, 'Vocabulary level is hard to raise on purpose.');
-  add('AI-typical words per 100', r1(base.aiRate), r1(app.aiRate), app.aiRate >= 1.5 && base.aiRate < 0.5, 1, 'They never use these words in Discord.');
-  add('Em / en dashes', base.dashes, app.dashes, app.dashes >= 1 && base.dashes === 0, 0.5, 'Few people type dashes in casual chat.');
-  add("Lowercase 'i'", pct(base.lowerI), pct(app.lowerI), base.lowerI != null && base.lowerI >= 0.5 && app.iCount >= 3 && app.lowerI === 0, 0.35, 'Extra effort on a form can explain this one.');
-  add('Skipped apostrophes (dont, im)', pct(base.missApos), pct(app.missApos), base.missApos != null && base.missApos >= 0.5 && app.missApos === 0, 0.4, 'A habit that is easy to keep by accident.');
-  add('Slang per 100 words', r1(base.slang), r1(app.slang), base.slang >= 3 && app.slang === 0, 0.25, 'Expected to drop on a formal application.');
-  add('Commas per 100 words', r1(base.commas), r1(app.commas), app.commas >= 5 && app.commas >= 3 * Math.max(base.commas, 0.5), 0.25, 'Longer, clause-heavy sentences.');
+  const add = (label, b, a, flag, w, short) => rows.push({ label, b, a, flag, w, short });
+  add('Long words (9+ letters)', pct(base.longRatio), pct(app.longRatio), app.longRatio >= 2 * base.longRatio && app.longRatio >= 0.1, 1, 'vocabulary level');
+  add('AI-typical words per 100', r1(base.aiRate), r1(app.aiRate), app.aiRate >= 1.5 && base.aiRate < 0.5, 1, 'AI-typical words');
+  add('Em / en dashes', base.dashes, app.dashes, app.dashes >= 1 && base.dashes === 0, 0.5, 'dashes');
+  add("Lowercase 'i'", pct(base.lowerI), pct(app.lowerI), base.lowerI != null && base.lowerI >= 0.5 && app.iCount >= 3 && app.lowerI === 0, 0.35, 'lowercase i');
+  add('Skipped apostrophes (dont, im)', pct(base.missApos), pct(app.missApos), base.missApos != null && base.missApos >= 0.5 && app.missApos === 0, 0.4, 'apostrophes');
+  add('Slang per 100 words', r1(base.slang), r1(app.slang), base.slang >= 3 && app.slang === 0, 0.25, 'slang');
+  add('Commas per 100 words', r1(base.commas), r1(app.commas), app.commas >= 5 && app.commas >= 3 * Math.max(base.commas, 0.5), 0.25, 'commas');
   const total = rows.reduce((t, r) => t + (r.flag ? r.w : 0), 0);
   return { rows, strength: clamp(total / 2), flagged: rows.filter(r => r.flag) };
 }
@@ -129,29 +128,29 @@ function analyze(text, ctx = {}) {
   const vd = per100(vs);
   const topWords = [...strongWords.keys(), ...mildWords.keys()].slice(0, 5);
   sig.push({ id: 'vocab', name: 'AI-typical vocabulary', weight: 3, strength: clamp((vd - 0.75) / 3),
-    detail: vs ? `${r1(vd)} per 100 words (${topWords.join(', ')}). Casual writers usually stay under 1.` : 'None found.' });
+    detail: vs ? `${r1(vd)} per 100 words: ${topWords.join(', ')}.` : 'None found.' });
 
   // 2. Stock phrases
   const ph = spans.filter(s => s.c === 'p'); const pd = per100(ph.length);
   sig.push({ id: 'phrase', name: 'Stock application phrases', weight: 2.5, strength: clamp((pd - 0.4) / 2),
-    detail: ph.length ? `${ph.length} found, e.g. “${ph.slice(0, 3).map(p => p.w).join('”, “')}”.` : 'None found.' });
+    detail: ph.length ? `${ph.length} found: “${ph.slice(0, 3).map(p => p.w).join('”, “')}”${ph.length > 3 ? '…' : ''}` : 'None found.' });
 
   // 3. Pasted formatting
   const bold = count(/\*\*[^*\n]+\*\*/g, text), heads = count(/^\s{0,3}#{1,4}\s+\S/gm, text);
   const bullets = count(/^\s*([-*•]|\d+[.)])\s+\S/gm, text);
   const mdS = (bold || heads) ? 1 : bullets >= 2 ? 0.5 : 0;
   sig.push({ id: 'md', name: 'Pasted formatting', weight: 3, strength: mdS,
-    detail: mdS ? `${bold ? bold + ' **bold** marker(s) ' : ''}${heads ? heads + ' # heading(s) ' : ''}${bullets >= 2 ? bullets + ' list lines' : ''}. Google Forms does not render these, so literal asterisks usually come from copying a chatbot reply.`.replace(/\s+\./, '.') : 'None found.' });
+    detail: mdS ? [bold && `${bold} **bold** marker${bold > 1 ? 's' : ''}`, heads && `${heads} # heading${heads > 1 ? 's' : ''}`, bullets >= 2 && `${bullets} list lines`].filter(Boolean).join(', ') + '.' : 'None found.' });
 
   // 4. Dashes
   const dashes = count(DASH, text);
   let dS = dashes === 0 ? 0 : dashes === 1 ? 0.45 : dashes === 2 ? 0.75 : 1;
-  let dNote = 'Long dashes are a frequent ChatGPT habit. Phones can turn -- into one, so check their Discord.';
+  let dNote = '';
   if (dashes && ctx.base) {
-    if (ctx.base.dashes > 0) { dS *= 0.3; dNote = 'They also use dashes in Discord, so this counts for little.'; }
-    else { dS = clamp(dS + 0.25); dNote = 'They never use dashes in their Discord messages.'; }
+    if (ctx.base.dashes > 0) { dS *= 0.3; dNote = ' They also use dashes in Discord.'; }
+    else { dS = clamp(dS + 0.25); dNote = ' Never used in their Discord.'; }
   }
-  sig.push({ id: 'dash', name: 'Em dashes', weight: 1.5, strength: dS, detail: dashes ? `${dashes} found. ${dNote}` : 'None found.' });
+  sig.push({ id: 'dash', name: 'Em dashes', weight: 1.5, strength: dS, detail: dashes ? `${dashes} found.${dNote}` : 'None found.' });
 
   // 5. Sentence rhythm
   const lens = sentencesOf(text).map(s => (s.match(/[A-Za-z][A-Za-z'’-]*/g) || []).length).filter(n => n >= 3);
@@ -162,7 +161,7 @@ function analyze(text, ctx = {}) {
     const cv = sd / mean;
     uS = cv <= 0.28 ? 1 : cv >= 0.5 ? 0 : (0.5 - cv) / 0.22;
     if (mean < 10) uS *= 0.5;
-    uDetail = `Average ${Math.round(mean)} words per sentence, variation ${Math.round(cv * 100)}%. People usually mix short and long sentences (40%+); AI text tends to stay even.`;
+    uDetail = `Sentences average ${Math.round(mean)} words, ${Math.round(cv * 100)}% variation.`;
   }
   sig.push({ id: 'rhythm', name: 'Even sentence rhythm', weight: 1.5, strength: clamp(uS), detail: uDetail });
 
@@ -171,13 +170,13 @@ function analyze(text, ctx = {}) {
     + sentencesOf(text).filter(s => /^[^A-Za-z]*[a-z]/.test(s)).length + count(/\p{Extended_Pictographic}/gu, text);
   const cS = casual ? 0 : W >= 150 ? 0.7 : W >= 60 ? 0.5 : 0;
   sig.push({ id: 'polish', name: 'No casual traces', weight: 0.75, strength: cS,
-    detail: casual ? `${casual} casual trace(s) such as lowercase i, slang or skipped apostrophes.` : W >= 60 ? 'Flawless capitalization and punctuation throughout. Weak alone, since people tidy up for applications.' : 'Too short to judge.' });
+    detail: casual ? `${casual} casual trace${casual > 1 ? 's' : ''} found.` : W >= 60 ? 'Flawless capitalization and punctuation.' : 'Too short to judge.' });
 
   // 7. Lists of three
   const trip = count(/\b[\w'’-]+(?: [\w'’-]+){0,2}, [\w'’-]+(?: [\w'’-]+){0,2},? and [\w'’-]+/gi, text);
   const td = per100(trip);
   sig.push({ id: 'triplet', name: 'Lists of three', weight: 1, strength: clamp((td - 0.4) / 1.2),
-    detail: trip ? `${trip} “X, Y, and Z” list(s). AI leans on groups of three qualities.` : 'None found.' });
+    detail: trip ? `${trip} found.` : 'None found.' });
 
   // 8. Concrete detail
   let specifics = count(NUMWORD, text) + count(ANECDOTE, text);
@@ -189,14 +188,14 @@ function analyze(text, ctx = {}) {
   const sd100 = per100(specifics);
   const spS = W < 60 ? 0 : sd100 < 0.75 ? 1 : sd100 < 1.5 ? 0.6 : sd100 < 2.5 ? 0.25 : 0;
   sig.push({ id: 'specific', name: 'Little concrete detail', weight: 1.5, strength: spS,
-    detail: W < 60 ? 'Too short to judge.' : `${specifics} specific detail(s) (names, numbers, dates, your division terms). ${spS >= 0.6 ? 'Generic answers that could fit any group are typical of AI.' : 'A reasonable amount.'}` });
+    detail: W < 60 ? 'Too short to judge.' : `${specifics} specific detail${specifics === 1 ? '' : 's'} found.` });
 
   // 9. Discord comparison
   let cmp = null;
   if (ctx.base) {
     cmp = compareBaseline(profile(text), ctx.base);
     sig.push({ id: 'base', name: 'Different from their Discord writing', weight: 3, strength: cmp.strength,
-      detail: cmp.flagged.length ? `${cmp.flagged.length} clear difference(s): ${cmp.flagged.map(r => r.label.toLowerCase()).join('; ')}.` : 'Writing style is consistent with their messages.' });
+      detail: cmp.flagged.length ? `Changed from Discord: ${cmp.flagged.map(r => r.short).join(', ')}.` : 'Consistent with their messages.' });
   }
 
   const points = sig.reduce((t, s) => t + s.weight * s.strength, 0);
@@ -286,6 +285,27 @@ const BANDS = {
   high: ['Verify in person', 'Run follow-up'],
   none: ['No input', 'Paste answers']
 };
+const WHY = {
+  base: 'Compares vocabulary, dashes and habits like lowercase i with how they write in Discord. A sudden jump in vocabulary is hard to fake.',
+  vocab: 'Words chatbots overuse. Casual writers rarely pass 1 per 100 words.',
+  md: "Google Forms doesn't render ** or #, so they usually come from a pasted chatbot reply.",
+  phrase: 'Stock lines like “valuable asset” and “commitment to excellence”.',
+  rhythm: 'People mix short and long sentences (40%+ variation). AI tends to keep them even.',
+  specific: 'Names, numbers, dates and division terms. Generic answers that could fit any group are typical of AI.',
+  dash: 'A common ChatGPT habit. Some phones insert them too, so check their Discord.',
+  triplet: 'Repeated “X, Y, and Z” lists of qualities.',
+  polish: 'No lowercase i, slang or skipped apostrophes. Weak alone, since people tidy up for applications.'
+};
+const SHORT = { base: 'unlike their Discord', vocab: 'AI-typical words', md: 'pasted formatting', phrase: 'stock phrases', rhythm: 'even sentence rhythm', specific: 'little concrete detail', dash: 'em dashes', triplet: 'lists of three', polish: 'no casual traces' };
+const openHelp = new Set();
+$('#signals').addEventListener('click', e => {
+  const btn = e.target.closest('[data-help]');
+  if (!btn) return;
+  const id = btn.dataset.help, open = !openHelp.has(id);
+  open ? openHelp.add(id) : openHelp.delete(id);
+  btn.setAttribute('aria-expanded', open);
+  $('#why-' + id).hidden = !open;
+});
 const bandOf = i => i >= 50 ? 'high' : i >= 22 ? 'mid' : 'low';
 const BAND_SHORT = { low: 'Low', mid: 'Read closely', high: 'Verify' };
 let lastReport = '', lastAnnounced = '';
@@ -319,32 +339,33 @@ function run() {
   const res = analyze(all, { base: hasBase ? baseProf : null, terms });
   const perRes = filled.map(x => ({ ...x, r: analyze(x.a, { terms }) }));
 
-  if (res.W < 80) warnings.push(['Short answers.', 'Under 80 words in total gives few signals, so treat any result as weak.']);
+  if (res.W < 80) warnings.push(['Short answers.', 'Under 80 words, so treat the result as weak.']);
   if (!hasBase) warnings.push(state.baseline.trim()
-    ? ['Discord sample too short.', `It has ${baseProf.words} words. Add more messages (40+ words) to turn on the comparison.`]
-    : ['No Discord sample yet.', 'Paste some of their messages in step 3. It is the most reliable check.']);
+    ? ['Not enough Discord messages.', `${baseProf.words} words so far; the comparison needs 40.`]
+    : ['No Discord messages.', 'Add some in step 3 for the most reliable check.']);
   let band = res.band;
   if (res.W < 40 && band === 'high') band = 'mid';
 
   const [t, s] = BANDS[band];
   $('#stamp').className = 'stamp band-' + band; $('#stamp').innerHTML = `${t}<small>${s}</small>`;
   $('#needle').style.left = res.index + '%';
-  $('#indexLine').textContent = `Indicator index ${res.index} / 100 · ${res.strongCount} strong signal${res.strongCount === 1 ? '' : 's'} · ${res.W} words. The index counts patterns; it is not a probability.`;
-  const top = res.sig.filter(x => x.strength >= 0.5).sort((a, b) => b.weight * b.strength - a.weight * a.strength).map(x => x.name.toLowerCase());
+  $('#indexLine').textContent = `Index ${res.index}/100 · ${res.strongCount} strong signal${res.strongCount === 1 ? '' : 's'} · ${res.W} words`;
+  const top = res.sig.filter(x => x.strength >= 0.5).sort((a, b) => b.weight * b.strength - a.weight * a.strength).map(x => SHORT[x.id]);
   $('#summary').textContent = band === 'low'
-    ? 'Few AI patterns. Nothing here suggests the answers need extra checking.'
+    ? 'Few AI patterns.'
     : band === 'mid'
-      ? (top.length ? `Some patterns found (${top.slice(0, 3).join(', ')}). Read the marked text and compare with their Discord before deciding.` : 'Mild patterns spread across several signals. Read the marked text before deciding.')
-      : `Several independent patterns: ${top.slice(0, 4).join(', ')}. Run the follow-up questions before you accept or deny.`;
+      ? (top.length ? `Some patterns: ${top.slice(0, 3).join(', ')}.` : 'Mild patterns across several signals.')
+      : `Several patterns: ${top.slice(0, 4).join(', ')}.`;
   announce(`Result: ${t}. Index ${res.index} of 100.`);
   $('#warnings').innerHTML = warnings.map(([h, w]) => `<div class="warn-line"><b>${esc(h)}</b> ${esc(w)}</div>`).join('');
 
   // Signals
   const sorted = [...res.sig].sort((a, b) => b.weight * b.strength - a.weight * a.strength);
   $('#signals').innerHTML = sorted.map(x => {
-    const on = Math.round(x.strength * 5);
+    const on = Math.round(x.strength * 5), open = openHelp.has(x.id);
     return `<div class="sig ${x.strength < 0.1 ? 'off' : ''}">
-      <div class="sig-name">${esc(x.name)}</div>
+      <div class="sig-name">${esc(x.name)}<button type="button" class="sig-help" data-help="${x.id}" aria-expanded="${open}" aria-controls="why-${x.id}" aria-label="What does ${esc(x.name)} mean?">?</button></div>
+      <p class="sig-why" id="why-${x.id}"${open ? '' : ' hidden'}>${esc(WHY[x.id])}</p>
       <div class="pips ${x.weight >= 2.5 && x.strength >= 0.6 ? 'hot' : ''}" role="img" aria-label="Strength ${on} of 5">${[0, 1, 2, 3, 4].map(k => `<span class="${k < on ? 'on' : ''}"></span>`).join('')}<em aria-hidden="true">${on}/5</em></div>
       <div class="sig-detail">${esc(x.detail)}</div></div>`;
   }).join('');
@@ -353,7 +374,7 @@ function run() {
   $('#baseSec').hidden = !hasBase;
   if (hasBase && res.cmp) {
     $('#baseTable').innerHTML = '<thead><tr><th scope="col">Habit</th><th scope="col">Discord</th><th scope="col">Form</th><th scope="col">Gap</th></tr></thead><tbody>' +
-      res.cmp.rows.map(r => `<tr><td>${esc(r.label)}${r.flag ? `<div class="hint">${esc(r.note)}</div>` : ''}</td><td class="num">${esc(r.b)}</td><td class="num">${esc(r.a)}</td><td>${r.flag ? '<span class="flag y">Different</span>' : '<span class="flag n">Similar</span>'}</td></tr>`).join('') + '</tbody>';
+      res.cmp.rows.map(r => `<tr><td>${esc(r.label)}</td><td class="num">${esc(r.b)}</td><td class="num">${esc(r.a)}</td><td>${r.flag ? '<span class="flag y">Different</span>' : '<span class="flag n">Similar</span>'}</td></tr>`).join('') + '</tbody>';
   }
 
   // Per answer: number and band word as well as bar color
