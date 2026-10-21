@@ -10,19 +10,18 @@ const store = {
   set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
 };
 
-/* ---------- Theme toggle ---------- */
+/* ---------- Theme toggle: Night (default) and Parchment ---------- */
 const root = document.documentElement;
-const darkQuery = window.matchMedia('(prefers-color-scheme: dark)');
-const isDark = () => root.dataset.theme ? root.dataset.theme === 'dark' : darkQuery.matches;
+const isDark = () => root.dataset.theme !== 'light';
 function syncThemeUI() {
-  root.classList.toggle('is-dark', isDark());
-  $('#themeToggle').setAttribute('aria-label', isDark() ? 'Switch to light mode' : 'Switch to dark mode');
+  $('#themeLabel').textContent = isDark() ? 'Parchment mode' : 'Night mode';
+  $('#themeToggle').setAttribute('aria-label', isDark() ? 'Switch to Parchment mode' : 'Switch to Night mode');
 }
 $('#themeToggle').addEventListener('click', () => {
-  const next = isDark() ? 'light' : 'dark';
-  root.dataset.theme = next; store.set('cad.theme', next); syncThemeUI();
+  if (isDark()) { root.dataset.theme = 'light'; store.set('cad.theme', 'light'); }
+  else { delete root.dataset.theme; store.set('cad.theme', 'dark'); }
+  syncThemeUI();
 });
-darkQuery.addEventListener('change', syncThemeUI);
 syncThemeUI();
 
 /* ---------- Word lists ---------- */
@@ -381,7 +380,7 @@ const GOOGLE = {
   clientId: '601598001948-sqlooush5733lhos18il81tj1m19vft9.apps.googleusercontent.com',
   apiKey: 'AIzaSyCop86sJbuGYZ6CFSmGWNp_TWkE7rTPrgk',
   appId: '601598001948',
-  scope: 'https://www.googleapis.com/auth/drive.file'
+  scope: 'openid email https://www.googleapis.com/auth/drive.file'
 };
 const REFRESH_MS = 60000;
 let gToken = null, gTokenExp = 0, pickerLoaded = null, liveSheet = null, refreshTimer = null, lastRefresh = 0;
@@ -636,6 +635,7 @@ function markText(text, spans) {
 function announce(msg) { if (msg !== lastAnnounced) { lastAnnounced = msg; $('#srStatus').textContent = msg; } }
 
 function run() {
+  $('#dossierName').textContent = state.applicant || 'None selected';
   const filled = state.answers.map((x, i) => ({ ...x, i })).filter(x => x.a.trim());
   const all = filled.map(x => x.a).join('\n\n');
   const baseProf = profile(state.baseline || '');
@@ -775,6 +775,167 @@ $('#copyReport').addEventListener('click', () => {
     }, fallback);
   } catch (e) { fallback(); }
 });
+
+/* ---------- High Command roster ---------- */
+// Who may pass the terminal, and how they are greeted. Keys are SHA-256 hashes of 'cad-roster-v1:' + lowercase email,
+// so the public code never contains anyone's email address. To add someone, hash their email the same way and add a line.
+// clearance is optional and defaults to High Command.
+const ROSTER = {
+  '035fb2e464301bd183b4d44f3022266bf155e35c7b1b5018aed73098c6f2f052': { rank: 'Chief of Intelligence Staff', name: 'VintInvictus', clearance: 'Executive Leadership' }
+};
+async function rosterLookup(email) {
+  const data = new TextEncoder().encode('cad-roster-v1:' + email.trim().toLowerCase());
+  const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', data))].map(b => b.toString(16).padStart(2, '0')).join('');
+  return ROSTER[hash] || null;
+}
+async function googleEmail() {
+  const r = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', { headers: { Authorization: 'Bearer ' + gToken } });
+  if (!r.ok) throw new Error("Couldn't read your Google email address. Sign in again and allow access to your email.");
+  const info = await r.json();
+  if (!info.email || info.email_verified === false) throw new Error('Your Google account has no verified email address.');
+  return info.email;
+}
+
+/* ---------- Terminal entry gate (once per browser session) ---------- */
+// Sign-in comes first: the email decides whether you get in and how you are greeted.
+// Access to applications is still Google's: people only load sheets shared with their group.
+const gate = $('#gate');
+const sess = {
+  get() { try { return sessionStorage.getItem('cad.session') === '1'; } catch (e) { return false; } },
+  set(on) { try { on ? sessionStorage.setItem('cad.session', '1') : (sessionStorage.removeItem('cad.session'), sessionStorage.removeItem('cad.operator')); } catch (e) {} }
+};
+const operator = {
+  get() { try { return JSON.parse(sessionStorage.getItem('cad.operator') || 'null'); } catch (e) { return null; } },
+  set(who) { try { sessionStorage.setItem('cad.operator', JSON.stringify(who)); } catch (e) {} }
+};
+const BOOT_MS = 7000;
+let bootCancel = null;
+
+function setPageInert(on) { document.querySelectorAll('body > :not(#gate)').forEach(el => { el.inert = on; }); }
+function showOperator() {
+  const who = operator.get();
+  $('#operatorRank').textContent = who ? who.rank : '';
+  $('#operatorName').textContent = who ? who.name : '';
+  $('#operatorChip').hidden = !who;
+  $('#lockTerminal').hidden = false;
+}
+function gateError(msg) { $('#gateError').textContent = msg; $('#gateError').hidden = !msg; }
+function gateStatus(msg) { $('#gateStatus').textContent = msg; $('#gateStatus').hidden = !msg; }
+function gateBusy(on) {
+  $('#gateGoogle').disabled = on;
+  $('#gateGoogleLabel').textContent = on ? 'Authenticating…' : 'Sign in with Google credentials';
+}
+function openGate() {
+  if (bootCancel) bootCancel();
+  document.documentElement.classList.remove('session');
+  document.documentElement.classList.add('gate-open');
+  gate.hidden = false; gate.classList.remove('is-leaving');
+  $('#sessionId').textContent = `SEC-${String(Math.floor(Math.random() * 90000) + 10000)}-HC`;
+  $('#bootLog').hidden = true; $('#bootLog').innerHTML = '';
+  $('#bootProgress').hidden = true; $('#bootProgress i').style.transition = 'none'; $('#bootProgress i').style.width = '0';
+  $('#skipHint').hidden = true; $('#gateActions').hidden = false;
+  gateError(''); gateStatus(''); gateBusy(false);
+  setPageInert(true);
+  $('#gateGoogle').focus();
+}
+function closeGate() {
+  sess.set(true);
+  gate.classList.add('is-leaving');
+  setTimeout(() => {
+    gate.hidden = true; gate.classList.remove('is-leaving');
+    document.documentElement.classList.remove('gate-open');
+    document.documentElement.classList.add('session');
+    setPageInert(false); showOperator();
+    if (!$('#picker').hidden) $('#appSearch').focus();
+  }, 450);
+}
+
+function runBoot(who, info) {
+  $('#gateActions').hidden = true; gateError(''); gateStatus('');
+  const log = $('#bootLog'); log.hidden = false; log.innerHTML = '';
+  const title = `${who.rank} ${who.name}`;
+  const lines = [
+    '> AUTHENTICATING GOOGLE CREDENTIALS ........ OK',
+    `> IDENTITY CONFIRMED: ${title.toUpperCase()}`,
+    `> CLEARANCE LEVEL: ${(who.clearance || 'High Command').toUpperCase()}`,
+    `> SECURE LINK: ${info.name.toUpperCase()} ........ OK`,
+    `> DECRYPTING ${info.count} APPLICANT DOSSIER${info.count === 1 ? '' : 'S'} ........ OK`,
+    '> CALIBRATING 9 DETECTION SIGNALS ........ OK',
+    `> WELCOME, ${title}. ACCESS GRANTED.`
+  ];
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const per = BOOT_MS / lines.length, timers = [];
+  let typer = null, done = false;
+  const bar = $('#bootProgress i');
+  $('#bootProgress').hidden = false; $('#skipHint').hidden = false;
+  bar.style.transition = 'none'; bar.style.width = '0';
+  requestAnimationFrame(() => requestAnimationFrame(() => { bar.style.transition = `width ${BOOT_MS}ms linear`; bar.style.width = '100%'; }));
+  const onKey = e => { if (e.key === 'Enter' || e.key === 'Escape' || e.key === ' ') { e.preventDefault(); finish(); } };
+  const onClick = () => finish();
+  const cleanup = () => { timers.forEach(clearTimeout); clearInterval(typer); document.removeEventListener('keydown', onKey); gate.removeEventListener('click', onClick); bootCancel = null; };
+  const finish = () => { if (done) return; done = true; cleanup(); closeGate(); };
+  bootCancel = () => { done = true; cleanup(); };
+  lines.forEach((text, k) => timers.push(setTimeout(() => {
+    const line = document.createElement('p');
+    if (k === lines.length - 1) line.className = 't-ok';
+    log.appendChild(line);
+    if (reduce) { line.textContent = text; return; }
+    let n = 0; const step = Math.max(1, Math.ceil(text.length / 18));
+    clearInterval(typer);
+    typer = setInterval(() => { n += step; line.textContent = text.slice(0, n); if (n >= text.length) clearInterval(typer); }, 22);
+  }, k * per)));
+  timers.push(setTimeout(finish, BOOT_MS + 600));
+  timers.push(setTimeout(() => { document.addEventListener('keydown', onKey); gate.addEventListener('click', onClick); }, 300));
+}
+
+function denyAccess(msg) {
+  gToken = null; gTokenExp = 0;
+  gateBusy(false); gateStatus('');
+  gateError(msg);
+}
+
+$('#gateGoogle').addEventListener('click', async () => {
+  gateError(''); gateBusy(true);
+  gateStatus('> AWAITING GOOGLE AUTHORIZATION');
+  let who, info;
+  try {
+    gToken = null; gTokenExp = 0;
+    await getToken();
+    gateStatus('> VERIFYING IDENTITY');
+    const email = await googleEmail();
+    who = await rosterLookup(email);
+    if (!who) return denyAccess(`> ACCESS DENIED: ${email} is not on the High Command roster.`);
+    operator.set(who);
+    gateStatus('> ESTABLISHING SECURE LINK');
+    let sheet = savedSheet();
+    if (!sheet) {
+      sheet = await chooseSheet();
+      if (!sheet) throw new Error("> No sheet picked. Pick your directorate's responses sheet to continue.");
+      store.set('cad.sheet', JSON.stringify(sheet));
+    }
+    stopLive();
+    try { await loadSheet(sheet, true); }
+    catch (e) { if (e.status === 403 || e.status === 404) store.set('cad.sheet', 'null'); throw e; }
+    closeList(); $('#appSearch').blur();
+    info = { name: sheet.name, count: applicants.length };
+  } catch (e) {
+    gateBusy(false); gateStatus('');
+    gateError(e.message.startsWith('>') ? e.message : '> ERROR: ' + e.message);
+    updateGoogleButton();
+    return;
+  }
+  runBoot(who, info);
+});
+$('#lockTerminal').addEventListener('click', () => {
+  stopLive(); gToken = null; gTokenExp = 0; showImportError(''); showSourceChoice();
+  state = { applicant: '', answers: [], baseline: '' };
+  $('#baseline').value = ''; $('#appSearch').value = '';
+  renderAnswers(); run();
+  sess.set(false); openGate();
+});
+
+if (sess.get() && operator.get()) { gate.hidden = true; showOperator(); }
+else { sess.set(false); openGate(); }
 
 renderAnswers();
 run();

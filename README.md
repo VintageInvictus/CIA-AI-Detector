@@ -55,7 +55,7 @@ The `.claude` folder is only for previewing on this computer. Don't upload it.
 6. Wait a minute or two and refresh the Pages settings. The link appears at the top:
    `https://YOUR-USERNAME.github.io/cia-ai-detector/`
 
-Share that link with the other Headquarters members.
+Share that link with the other High Command members.
 
 ## Update it later
 

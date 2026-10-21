@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>CIA AI Detector</title>
   <meta name="description" content="Screen recruitment applications for AI-written answers. Runs entirely in your browser.">
-  <meta name="theme-color" content="#0B1B33">
+  <meta name="theme-color" content="#06101e">
   <meta property="og:type" content="website">
   <meta property="og:title" content="CIA AI Detector">
   <meta property="og:description" content="Screen recruitment applications for AI-written answers. Runs entirely in your browser.">
@@ -16,52 +16,93 @@
   <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Public+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap">
-  <link rel="stylesheet" href="styles.css?v=16">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=Merriweather:ital,wght@0,300;0,400;0,700;1,400&display=swap">
+  <link rel="stylesheet" href="styles.css?v=23">
   <script>
-    // Apply the saved theme before first paint so the page doesn't flash.
-    try { var t = localStorage.getItem('cad.theme'); if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t); } catch (e) {}
+    // Apply the saved theme before first paint so the page doesn't flash. Night is the default.
+    try { if (localStorage.getItem('cad.theme') === 'light') document.documentElement.setAttribute('data-theme', 'light'); } catch (e) {}
+    // Skip the terminal screen if it was already passed in this browser session.
+    try { if (sessionStorage.getItem('cad.session') === '1') document.documentElement.classList.add('session'); } catch (e) {}
   </script>
 </head>
 <body>
+  <!-- TERMINAL ENTRY: shown once per browser session -->
+  <div id="gate" class="gate" role="dialog" aria-modal="true" aria-labelledby="gate-title">
+    <div class="gate-box">
+      <div class="gate-head">
+        <img src="assets/seal-144.png" alt="" width="64" height="64">
+        <div>
+          <span class="gate-kicker">Restricted // High Command only</span>
+          <h1 id="gate-title">CIA AI Detector</h1>
+          <p>High Command intelligence division · Access gateway</p>
+        </div>
+      </div>
+      <div class="terminal">
+        <p class="t-dim">// TERMINAL SESSION ID: <span id="sessionId">SEC-00000-HC</span></p>
+        <p>&gt; INITIALIZING APPLICATION SCREENER...</p>
+        <p class="t-strong">&gt; IDENTITY VERIFICATION REQUIRED. SIGN IN WITH YOUR GOOGLE ACCOUNT.</p>
+        <p class="t-status" id="gateStatus" hidden></p>
+        <p class="t-error" id="gateError" role="alert" hidden></p>
+        <div class="boot-log" id="bootLog" aria-live="polite" hidden></div>
+      </div>
+      <div class="gate-actions" id="gateActions">
+        <p class="gate-label">Mandatory clearance:</p>
+        <button type="button" class="btn btn-google" id="gateGoogle">
+          <svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+          <span id="gateGoogleLabel">Sign in with Google credentials</span>
+        </button>
+      </div>
+      <div class="boot-progress" id="bootProgress" hidden><i></i></div>
+      <p class="gate-foot"><span>Access is limited to High Command members on the roster.</span> <span id="skipHint" hidden>Click or press Enter to skip</span></p>
+    </div>
+  </div>
+
   <a class="skip-link" href="#screener">Skip to the screener</a>
 
   <div class="band">
     <header class="masthead container">
       <div class="brand">
-        <img class="emblem" src="assets/seal-144.png" alt="" width="52" height="52">
-        <span class="brand-text"><strong>CIA AI Detector</strong><small>Headquarters · Application review</small></span>
+        <img class="emblem" src="assets/seal-144.png" alt="" width="56" height="56">
+        <span class="brand-text">
+          <strong>CIA AI Detector <em>· High Command ·</em> <i>Application review</i></strong>
+          <small>Intelligence briefing unit // Recruitment screening</small>
+        </span>
       </div>
-      <button type="button" class="theme-toggle" id="themeToggle" aria-label="Switch to dark mode">
-        <svg viewBox="0 0 24 24" aria-hidden="true" class="icon-moon"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" fill="currentColor"/></svg>
-        <svg viewBox="0 0 24 24" aria-hidden="true" class="icon-sun"><circle cx="12" cy="12" r="4.5" fill="currentColor"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <div class="masthead-tools">
+      <span class="operator-chip" id="operatorChip" hidden><span id="operatorRank"></span> <b id="operatorName"></b></span>
+      <button type="button" class="btn btn-ghost" id="lockTerminal" hidden title="Sign out and lock the terminal">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+        <span>Lock</span>
       </button>
+      <button type="button" class="btn btn-ghost theme-toggle" id="themeToggle">
+        <svg viewBox="0 0 24 24" aria-hidden="true" class="icon-sun"><circle cx="12" cy="12" r="4.5" fill="currentColor"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <svg viewBox="0 0 24 24" aria-hidden="true" class="icon-moon"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" fill="currentColor"/></svg>
+        <span id="themeLabel">Parchment mode</span>
+      </button>
+      </div>
     </header>
   </div>
 
   <main id="screener" class="container workspace" tabindex="-1">
     <h1 class="sr-only">CIA AI Detector</h1>
 
-    <!-- INPUT -->
-    <section class="panel" aria-labelledby="in-h">
-      <div class="panel-bar">
-        <h2 id="in-h">Case file</h2>
-      </div>
-      <div class="panel-body">
-        <fieldset class="block">
-          <legend>Applications</legend>
+    <!-- LEFT: case file -->
+    <div class="column">
+      <section class="card" aria-labelledby="intake-h">
+        <div class="card-head"><h2 id="intake-h">Case file <span>// Dossier intake</span></h2></div>
+        <div class="card-body">
           <div id="sourceChoice" class="source-choice">
-          <button type="button" class="btn btn-google" id="gSignIn">
-            <svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
-            <span id="gSignInLabel">Sign in with Google</span>
-          </button>
-          <p class="or"><span>or</span></p>
-          <label class="dropzone" id="dropzone">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5M5 14v4.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            <span><b>Drop the Google Forms export here</b> or <u>choose a file</u></span>
-            <small>.zip or .csv</small>
-            <input type="file" id="fileInput" accept=".csv,.zip,text/csv,application/zip" class="sr-only">
-          </label>
+            <button type="button" class="btn btn-google" id="gSignIn">
+              <svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+              <span id="gSignInLabel">Sign in with Google</span>
+            </button>
+            <p class="or"><span>or</span></p>
+            <label class="dropzone" id="dropzone">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5M5 14v4.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span><u>Drop the Google Forms export</u> or click to upload</span>
+              <small>.zip or .csv</small>
+              <input type="file" id="fileInput" accept=".csv,.zip,text/csv,application/zip" class="sr-only">
+            </label>
           </div>
           <div id="picker" class="picker" hidden>
             <div class="picker-row">
@@ -80,77 +121,96 @@
             <p class="file-line"><span class="live-dot" id="liveDot" hidden title="Updates every minute">Live</span><span id="fileInfo"></span> <button type="button" class="link-btn" id="changeFile">Change file</button> <button type="button" class="link-btn" id="signOut" hidden>Sign out</button></p>
           </div>
           <p class="import-error" id="importError" role="alert" hidden></p>
-        </fieldset>
+        </div>
+      </section>
 
-        <fieldset class="block">
-          <legend>Application answers</legend>
+      <section class="card" aria-labelledby="answers-h">
+        <div class="card-head"><h2 id="answers-h">Applicant questions</h2></div>
+        <div class="card-body">
           <ul id="answers" class="answer-list"></ul>
-        </fieldset>
-
-        <fieldset class="block">
-          <legend>Their Discord messages</legend>
-          <textarea id="baseline" rows="6" aria-label="Their Discord messages" placeholder="Paste 10–20 of their recent messages from the main server, one per line"></textarea>
-        </fieldset>
-
-        <div class="actions">
-          <button type="button" class="btn btn-quiet" id="clearAll">Clear case</button>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- RESULTS -->
-    <section class="panel" aria-labelledby="out-h">
-      <div class="panel-bar">
-        <h2 id="out-h">Findings</h2>
-        <button type="button" class="btn btn-primary" id="copyReport">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3" fill="none" stroke="currentColor" stroke-width="2"/></svg>
-          Copy report for Discord
-        </button>
-      </div>
-      <div class="panel-body">
-        <div class="toast" id="toast" role="status"></div>
-        <div class="sr-only" id="srStatus" role="status" aria-live="polite"></div>
-        <textarea id="copyFallback" hidden readonly aria-label="Report text to copy"></textarea>
+      <section class="card" aria-labelledby="discord-h">
+        <div class="card-head"><h2 id="discord-h">Discord baseline <span>// Their own words</span></h2></div>
+        <div class="card-body">
+          <textarea id="baseline" rows="7" aria-labelledby="discord-h" placeholder="Paste 10–20 of their recent messages from the main server, one per line"></textarea>
+        </div>
+      </section>
 
-        <div class="verdict">
-          <div class="stamp band-none" id="stamp">No applicant<small>Pick one to begin</small></div>
-          <div class="verdict-text">
-            <p id="summary">Pick an applicant to begin.</p>
-            <div class="meter" aria-hidden="true"><i id="needle" style="left:0%"></i></div>
-            <div class="meter-scale" aria-hidden="true"><span>Low</span><span>Read closely</span><span>Verify in person</span></div>
-            <p class="index" id="indexLine"></p>
+      <div class="card dossier-bar">
+        <p><span>Current dossier</span> <b id="dossierName">None selected</b></p>
+        <button type="button" class="btn btn-danger" id="clearAll">Clear case</button>
+      </div>
+    </div>
+
+    <!-- RIGHT: findings -->
+    <div class="column">
+      <section class="card card-verdict" aria-labelledby="verdict-h">
+        <div class="card-head">
+          <h2 id="verdict-h">Findings <span>// Assessment</span></h2>
+        </div>
+        <div class="card-body">
+          <div class="sr-only" id="srStatus" role="status" aria-live="polite"></div>
+          <div class="verdict">
+            <div class="verdict-text">
+              <p id="summary">Pick an applicant to begin.</p>
+              <div class="meter" aria-hidden="true"><i id="needle" style="left:0%"></i></div>
+              <div class="meter-scale" aria-hidden="true"><span>Low</span><span>Read closely</span><span>Verify in person</span></div>
+              <p class="index" id="indexLine"></p>
+            </div>
+            <div class="stamp band-none" id="stamp">No applicant<small>Pick one to begin</small></div>
           </div>
+          <div class="warnings" id="warnings"></div>
         </div>
-        <div class="warnings" id="warnings"></div>
+      </section>
 
-        <div class="block">
-          <h3>Signals</h3>
-          <div id="signals"></div>
-        </div>
+      <section class="card" aria-labelledby="signals-h">
+        <div class="card-head"><h2 id="signals-h">Detection signals</h2><span class="card-note">Click ? for an explanation</span></div>
+        <div class="card-body"><div id="signals" class="signal-grid"></div></div>
+      </section>
 
-        <div class="block" id="baseSec">
-          <h3>Discord vs. application</h3>
-          <p class="hint" id="baseSummary"></p>
+      <section class="card" id="baseSec" aria-labelledby="compare-h">
+        <div class="card-head"><h2 id="compare-h">Discord vs. application</h2></div>
+        <div class="card-body">
+          <p class="card-lede" id="baseSummary"></p>
           <div class="table-wrap"><table id="baseTable"></table></div>
         </div>
+      </section>
 
-        <div class="block">
-          <h3>Marked answers</h3>
+      <section class="card" aria-labelledby="marked-h">
+        <div class="card-head"><h2 id="marked-h">Highlighted anomalies</h2></div>
+        <div class="card-body">
           <div class="legend">
-            <span><mark class="v">solid underline</mark> AI-typical word</span>
-            <span><mark class="m">no underline</mark> Common in AI writing</span>
-            <span><mark class="p">dotted underline</mark> Stock phrase</span>
-            <span><mark class="d">wavy underline</mark> Em dash or pasted formatting</span>
+            <span><mark class="v">solid</mark> AI-typical word</span>
+            <span><mark class="m">dotted</mark> Common in AI writing</span>
+            <span><mark class="p">dashed</mark> Stock phrase</span>
+            <span><mark class="d">wavy</mark> Em dash or pasted formatting</span>
           </div>
           <div class="marked" id="marked"></div>
         </div>
+      </section>
 
-        <div class="block">
-          <h3>Follow-up questions</h3>
-          <div class="followups" id="followups"></div>
+      <section class="card" aria-labelledby="fu-h">
+        <div class="card-head"><h2 id="fu-h">Follow-up script <span>// Ask in voice or a ticket</span></h2></div>
+        <div class="card-body"><div class="followups" id="followups"></div></div>
+      </section>
+
+      <section class="card card-export" aria-labelledby="export-h">
+        <div class="export-row">
+          <div>
+            <h2 id="export-h">Report ready for Discord</h2>
+            <p>Fits in one message, no Nitro needed.</p>
+          </div>
+          <button type="button" class="btn btn-primary" id="copyReport">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+            Copy report
+          </button>
         </div>
-      </div>
-    </section>
+        <div class="toast" id="toast" role="status"></div>
+        <textarea id="copyFallback" hidden readonly aria-label="Report text to copy"></textarea>
+      </section>
+    </div>
   </main>
 
   <footer class="footer">
@@ -159,6 +219,6 @@
 
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script src="https://apis.google.com/js/api.js" async defer></script>
-  <script src="app.js?v=16"></script>
+  <script src="app.js?v=23"></script>
 </body>
 </html>
