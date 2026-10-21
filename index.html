@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Public+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap">
-  <link rel="stylesheet" href="styles.css?v=4">
+  <link rel="stylesheet" href="styles.css?v=6">
   <script>
     // Apply the saved theme before first paint so the page doesn't flash.
     try { var t = localStorage.getItem('cad.theme'); if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t); } catch (e) {}
@@ -54,13 +54,20 @@
       </div>
       <div class="panel-body">
         <fieldset class="block">
-          <legend><span class="step">1</span> Applications</legend>
+          <legend>Applications</legend>
+          <div id="sourceChoice" class="source-choice">
+          <button type="button" class="btn btn-google" id="gSignIn">
+            <svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+            <span id="gSignInLabel">Sign in with Google</span>
+          </button>
+          <p class="or"><span>or</span></p>
           <label class="dropzone" id="dropzone">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5M5 14v4.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
             <span><b>Drop the Google Forms export here</b> or <u>choose a file</u></span>
             <small>.zip or .csv</small>
             <input type="file" id="fileInput" accept=".csv,.zip,text/csv,application/zip" class="sr-only">
           </label>
+          </div>
           <div id="picker" class="picker" hidden>
             <div class="picker-row">
               <div class="combo">
@@ -75,13 +82,13 @@
                 <option value="az">A–Z</option>
               </select>
             </div>
-            <p class="file-line"><span id="fileInfo"></span> <button type="button" class="link-btn" id="changeFile">Change file</button></p>
+            <p class="file-line"><span class="live-dot" id="liveDot" hidden title="Updates every minute">Live</span><span id="fileInfo"></span> <button type="button" class="link-btn" id="changeFile">Change file</button> <button type="button" class="link-btn" id="signOut" hidden>Sign out</button></p>
           </div>
           <p class="import-error" id="importError" role="alert" hidden></p>
         </fieldset>
 
         <fieldset class="block">
-          <legend><span class="step">2</span> Your division</legend>
+          <legend>Your division</legend>
           <div class="row-2">
             <div class="field">
               <label for="division">Division name</label>
@@ -99,17 +106,12 @@
         </fieldset>
 
         <fieldset class="block">
-          <legend><span class="step">3</span> Application answers</legend>
+          <legend>Application answers</legend>
           <div id="answers" class="answers"></div>
           <button type="button" class="btn" id="addAnswer">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
             Add another answer
           </button>
-        </fieldset>
-
-        <fieldset class="block">
-          <legend><span class="step">4</span> Their Discord messages</legend>
-          <textarea id="baseline" rows="6" aria-label="Their Discord messages" placeholder="Paste 10–20 recent messages, one per line"></textarea>
         </fieldset>
 
         <div class="actions">
@@ -151,11 +153,6 @@
           <div id="signals"></div>
         </div>
 
-        <div class="block" id="baseSec">
-          <h3>Form vs. their Discord</h3>
-          <div class="table-wrap"><table id="baseTable"></table></div>
-        </div>
-
         <div class="block" id="perSec">
           <h3>Per answer</h3>
           <div class="per" id="per"></div>
@@ -174,16 +171,18 @@
 
         <div class="block">
           <h3>Follow-up questions</h3>
-          <ol class="followups" id="followups"></ol>
+          <div class="followups" id="followups"></div>
         </div>
       </div>
     </section>
   </main>
 
   <footer class="footer">
-    <p class="container">Fan-made tool for a Roblox roleplay group. Not affiliated with the U.S. Central Intelligence Agency. Everything you paste stays in your browser. <a href="privacy.html">Privacy</a></p>
+    <p class="container">AI detection tool for use in YepaInvictus's Central Intelligence Agency on Roblox. Not affiliated with the U.S. Central Intelligence Agency. <a href="privacy.html">Privacy</a></p>
   </footer>
 
-  <script src="app.js?v=4"></script>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="https://apis.google.com/js/api.js" async defer></script>
+  <script src="app.js?v=6"></script>
 </body>
 </html>

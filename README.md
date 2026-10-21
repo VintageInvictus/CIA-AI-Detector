@@ -1,6 +1,6 @@
 # CIA AI Detector
 
-A screening tool for recruitment applications. Paste an applicant's Google Form answers and some of their Discord messages, and it marks the patterns AI writing tends to leave, compares the form with how the applicant normally writes, and suggests follow-up questions.
+A screening tool for recruitment applications. Load your directorate's Google Form responses (sign in with Google, or drop the export file), pick an applicant, and it marks the patterns AI writing tends to leave and suggests follow-up questions for each answer.
 
 Everything runs in the visitor's browser. Nothing that is pasted is uploaded or stored on a server. Each division's name and terms are saved only in that person's own browser.
 
@@ -8,25 +8,24 @@ The result is a screening indicator, not proof. Deny based on the follow-up, nev
 
 ## How it works
 
-Nine signals. No single one means much; the result rises only when several agree. The index counts patterns and is not a probability.
+Eight signals. No single one means much; the result rises only when several agree. The index counts patterns and is not a probability.
 
 | Signal | Weight | What it looks for |
 |--------|--------|-------------------|
-| Different from their Discord | High | Vocabulary level, AI-typical words, dashes, lowercase "i", skipped apostrophes and slang compared with their messages |
 | AI-typical vocabulary | High | Words chatbots overuse (furthermore, foster, paramount, thrive) per 100 words |
 | Pasted formatting | High | Literal `**bold**` or `#` markers, which Google Forms doesn't render |
 | Stock application phrases | Medium | "valuable asset", "commitment to excellence", "this experience taught me" |
 | Even sentence rhythm | Medium | Sentences that are all about the same length |
 | Little concrete detail | Medium | Few names, numbers, dates or division terms |
-| Em dashes | Low | Counts for more when they never use dashes in Discord |
+| Em dashes | Low | A common ChatGPT habit, though some phones insert them too |
 | Lists of three | Low | Repeated "X, Y, and Z" lists of qualities |
 | No casual traces | Low | Flawless capitalization and punctuation |
 
 ## Using it fairly
 
-- **Low:** process normally. **Read closely:** compare with their Discord yourself. **Verify in person:** run the follow-up before deciding.
+- **Low:** process normally. **Read closely:** read the marked text yourself. **Verify in person:** run the follow-up before deciding.
 - Deny on the follow-up, never on the score. Formal writers, non-native English speakers and Grammarly users can trip some signals.
-- Follow-up: open a ticket, ask two or three of the generated questions, then give one new question to answer within 5 minutes and run that reply through as their Discord sample.
+- Follow-up: open a ticket and ask the generated questions for the flagged answers. They test whether the answer is the applicant's own: can they recall it without looking, back it with real specifics, and say it in their normal voice.
 - Make the form harder to fake: ask about trainings or raids only members would know, add a notice that AI-written answers are denied and answers may be checked in voice, and include a scenario that needs your SOP.
 
 ## Files

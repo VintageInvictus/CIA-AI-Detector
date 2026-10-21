@@ -206,15 +206,13 @@ function analyze(text, ctx = {}) {
 }
 
 /* ---------- Examples ---------- */
-const DISCORD_SAMPLE = 'yo anyone on rn\nngl that raid was kinda rough lol we got wiped at the gate like 3 times\ni can host training later if a HR is free\nidk who has the keycard for site b tho\nbro my wifi died mid patrol 💀\ngonna grind for sgt this week fr\nwho was the guy that kept tking at spawn\nim on in 10 mins if anyone wants to do drills\nthat new map is so confusing i got lost twice lmao\ndont forget training is at 6 est';
 const EX_AI = {
   applicant: 'Example: ShadowOps_Recruit',
   answers: [
     { q: 'Why do you want to join the CIA?', a: 'I want to join the CIA because I am deeply passionate about intelligence work and the strategic thinking it requires. The CIA represents a unique opportunity to contribute to a disciplined, collaborative team while developing my leadership and communication skills. Furthermore, I believe that my dedication, attention to detail, and commitment to excellence would make me a valuable asset to the agency. I am eager to learn from experienced operatives and to help foster a positive, professional environment within the group.' },
     { q: 'Describe a time you handled a difficult situation.', a: 'In a previous group, I encountered a situation where two members were in conflict over a training decision. Rather than taking sides, I listened to both perspectives, identified the root of the disagreement, and facilitated a calm discussion. Ultimately, we reached a compromise that satisfied everyone involved. This experience taught me the importance of patience, empathy, and clear communication — qualities I would bring to every operation.' },
     { q: 'What would you do if a superior gave you an order you disagreed with?', a: 'If a superior gave me an order I disagreed with, I would first follow the chain of command and carry out the order, provided it does not violate any rules. Afterward, I would respectfully raise my concerns in private, ensuring that my feedback is constructive and solution-oriented. Maintaining discipline is paramount in a mil-sim environment, but open communication is equally essential for the team to thrive.' }
-  ],
-  baseline: DISCORD_SAMPLE
+  ]
 };
 const EX_HUMAN = {
   applicant: 'Example: kaden_fan22',
@@ -222,12 +220,11 @@ const EX_HUMAN = {
     { q: 'Why do you want to join the CIA?', a: 'i want to join cia because ive been in the group for like 2 months as a recruit and i liked the way the patrols are run. my friend Kaden got me in and i went to the sunday trainings. i think im good at staying calm during raids and i want to try the intel side since i only did infantry before' },
     { q: 'Describe a time you handled a difficult situation.', a: 'one time in my old group (US Army roblox) a guy kept team killing at base and nobody was doing anything. i recorded it and sent it to a mod instead of arguing with him in chat, he got kicked after like a day. i was annoyed tho cause it ruined 2 trainings' },
     { q: 'What would you do if a superior gave you an order you disagreed with?', a: 'honestly i would do it if it doesnt break rules. then dm them after and say why i didnt agree. i wouldnt argue in front of everyone because thats what made my last group fall apart' }
-  ],
-  baseline: DISCORD_SAMPLE
+  ]
 };
 
 /* ---------- State and inputs ---------- */
-let state = { applicant: '', answers: [{ q: '', a: '' }], baseline: '', example: false };
+let state = { applicant: '', answers: [{ q: '', a: '' }], example: false };
 $('#terms').value = store.get('cad.terms') || '';
 $('#division').value = store.get('cad.division') || '';
 
@@ -249,8 +246,8 @@ function renderAnswers() {
     </div>`).join('');
 }
 function load(ex) {
-  state = { applicant: ex.applicant, answers: ex.answers.map(a => ({ ...a })), baseline: ex.baseline, example: true };
-  $('#applicant').value = state.applicant; $('#baseline').value = state.baseline;
+  state = { applicant: ex.applicant, answers: ex.answers.map(a => ({ ...a })), example: true };
+  $('#applicant').value = state.applicant;
   renderAnswers(); run();
 }
 function touched() { state.example = false; schedule(); }
@@ -265,14 +262,13 @@ $('#answers').addEventListener('click', e => {
 });
 $('#addAnswer').addEventListener('click', () => { state.answers.push({ q: '', a: '' }); renderAnswers(); $('#q-' + (state.answers.length - 1)).focus(); });
 $('#applicant').addEventListener('input', e => { state.applicant = e.target.value; touched(); });
-$('#baseline').addEventListener('input', e => { state.baseline = e.target.value; touched(); });
 $('#terms').addEventListener('input', e => { store.set('cad.terms', e.target.value); schedule(); });
 $('#division').addEventListener('input', e => { store.set('cad.division', e.target.value); schedule(); });
 $('#exAI').addEventListener('click', () => load(EX_AI));
 $('#exHuman').addEventListener('click', () => load(EX_HUMAN));
 $('#clearAll').addEventListener('click', () => {
-  state = { applicant: '', answers: [{ q: '', a: '' }], baseline: '', example: false };
-  $('#applicant').value = ''; $('#baseline').value = ''; renderAnswers(); run(); $('#a-0').focus();
+  state = { applicant: '', answers: [{ q: '', a: '' }], example: false };
+  $('#applicant').value = ''; renderAnswers(); run(); $('#a-0').focus();
 });
 
 /* ---------- Importing a Google Forms export (.zip or .csv) ---------- */
@@ -336,8 +332,9 @@ function parseStamp(s) {
   return Date.UTC(y, mo - 1, d, h, +mi, +(sec || 0));
 }
 
-function buildApplicants(rows) {
+function buildApplicants(rows, allowEmpty) {
   const [header, ...data] = rows;
+  if (header && !data.length && allowEmpty) return [];
   if (!header || !data.length) throw new Error('That file has no responses in it.');
   const cols = header.map((h, i) => {
     const lens = data.map(r => (r[i] || '').trim().length).filter(Boolean).sort((x, y) => x - y);
@@ -365,26 +362,167 @@ function buildApplicants(rows) {
 }
 
 async function importFile(file) {
-  const err = $('#importError'); err.hidden = true;
+  showImportError('');
   try {
     const buf = await file.arrayBuffer();
     const isZip = /\.zip$/i.test(file.name) || new Uint8Array(buf.slice(0, 2)).join() === '80,75';
     const text = isZip ? await csvFromZip(buf) : new TextDecoder().decode(buf);
     applicants = buildApplicants(parseCSV(text));
   } catch (e) {
-    err.textContent = e.message || "Couldn't read that file. Make sure it's the .zip or .csv from Google Forms.";
-    err.hidden = false; return;
+    showImportError(e.message || "Couldn't read that file. Make sure it's the .zip or .csv from Google Forms.");
+    return;
   }
-  const formName = file.name.replace(/(\.csv)?(\.zip)?$/i, '').replace(/\s*\((responses|.*?)\)\s*$/i, '').trim();
+  stopLive();
+  source = { kind: 'file', name: formTitle(file.name) };
+  showLoaded(true);
+}
+
+let source = null; // { kind: 'file' | 'sheet', name }
+function formTitle(name) { return name.replace(/(\.csv)?(\.zip)?$/i, '').replace(/\s*\((responses|.*?)\)\s*$/i, '').trim(); }
+function showImportError(msg) { const err = $('#importError'); err.textContent = msg; err.hidden = !msg; }
+function showLoaded(first, newCount = 0) {
   if (!$('#division').value.trim()) {
-    $('#division').value = formName.replace(/\s+application$/i, '');
+    $('#division').value = source.name.replace(/\s+application$/i, '');
     store.set('cad.division', $('#division').value);
   }
-  $('#fileInfo').textContent = `${formName} · ${applicants.length} applicant${applicants.length === 1 ? '' : 's'}`;
-  $('#dropzone').hidden = true; $('#picker').hidden = false;
-  $('#appSearch').value = ''; $('#appSearch').focus();
-  openList();
+  const n = applicants.length;
+  const parts = [source.name, `${n} applicant${n === 1 ? '' : 's'}`];
+  if (source.kind === 'sheet') parts.push(`updated ${new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`);
+  if (newCount) parts.push(`${newCount} new`);
+  $('#fileInfo').textContent = parts.join(' · ');
+  $('#liveDot').hidden = source.kind !== 'sheet';
+  $('#changeFile').textContent = source.kind === 'sheet' ? 'Change sheet' : 'Change file';
+  $('#signOut').hidden = source.kind !== 'sheet';
+  $('#sourceChoice').hidden = true; $('#picker').hidden = false;
+  if (first) { $('#appSearch').value = ''; $('#appSearch').focus(); openList(); }
+  else if (!$('#appList').hidden) renderList();
 }
+function showSourceChoice() {
+  applicants = []; currentApplicant = null; source = null; closeList();
+  $('#picker').hidden = true; $('#sourceChoice').hidden = false;
+  updateGoogleButton();
+}
+
+/* ---------- Live loading from Google Sheets ---------- */
+// Sign-in uses the drive.file permission: the site can only open sheets the person picks in Google's picker.
+// Google decides access, so people only see sheets shared with them (their directorate's group).
+const GOOGLE = {
+  clientId: '601598001948-sqlooush5733lhos18il81tj1m19vft9.apps.googleusercontent.com',
+  apiKey: 'AIzaSyCop86sJbuGYZ6CFSmGWNp_TWkE7rTPrgk',
+  appId: '601598001948',
+  scope: 'https://www.googleapis.com/auth/drive.file'
+};
+const REFRESH_MS = 60000;
+let gToken = null, gTokenExp = 0, pickerLoaded = null, liveSheet = null, refreshTimer = null, lastRefresh = 0;
+
+const savedSheet = () => { try { return JSON.parse(store.get('cad.sheet') || 'null'); } catch (e) { return null; } };
+function updateGoogleButton() {
+  const sheet = savedSheet();
+  $('#gSignInLabel').textContent = sheet ? `Sign in to load ${sheet.name}` : 'Sign in with Google';
+}
+
+function getToken() {
+  return new Promise((resolve, reject) => {
+    if (gToken && Date.now() < gTokenExp - 60000) return resolve(gToken);
+    if (!window.google || !google.accounts || !google.accounts.oauth2) {
+      return reject(new Error("Google sign-in didn't load. Check your connection or turn off ad blockers for this site, then try again."));
+    }
+    google.accounts.oauth2.initTokenClient({
+      client_id: GOOGLE.clientId,
+      scope: GOOGLE.scope,
+      callback: r => {
+        if (r.error) return reject(new Error(r.error === 'access_denied' ? 'Sign-in was cancelled.' : `Google sign-in failed (${r.error}).`));
+        gToken = r.access_token; gTokenExp = Date.now() + (+r.expires_in || 3600) * 1000;
+        resolve(gToken);
+      },
+      error_callback: e => reject(new Error(
+        e.type === 'popup_failed_to_open' ? 'Your browser blocked the Google sign-in window. Allow pop-ups for this site and try again.'
+        : e.type === 'popup_closed' ? 'The sign-in window was closed before finishing.' : 'Google sign-in failed.'))
+    }).requestAccessToken({ prompt: '' });
+  });
+}
+
+function loadPickerApi() {
+  return pickerLoaded || (pickerLoaded = new Promise((resolve, reject) => {
+    if (!window.gapi) return reject(new Error("Google's file picker didn't load. Check your connection or turn off ad blockers for this site."));
+    gapi.load('picker', { callback: resolve, onerror: () => reject(new Error("Google's file picker didn't load.")) });
+  }).catch(e => { pickerLoaded = null; throw e; }));
+}
+async function chooseSheet() {
+  await loadPickerApi();
+  return new Promise(resolve => {
+    const view = new google.picker.DocsView(google.picker.ViewId.SPREADSHEETS).setIncludeFolders(false).setMode(google.picker.DocsViewMode.LIST);
+    new google.picker.PickerBuilder()
+      .setAppId(GOOGLE.appId).setOAuthToken(gToken).setDeveloperKey(GOOGLE.apiKey)
+      .addView(view).setTitle("Choose your directorate's responses sheet")
+      .setCallback(d => {
+        if (d.action === google.picker.Action.PICKED) resolve({ id: d.docs[0].id, name: formTitle(d.docs[0].name) });
+        else if (d.action === google.picker.Action.CANCEL) resolve(null);
+      })
+      .build().setVisible(true);
+  });
+}
+
+async function sheetRows(sheet) {
+  const api = async path => {
+    const r = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sheet.id)}${path}`, { headers: { Authorization: 'Bearer ' + gToken } });
+    if (r.ok) return r.json();
+    const e = new Error(r.status === 401 ? 'Your Google session expired. Sign in again.'
+      : (r.status === 403 || r.status === 404) ? `Your Google account can't open “${sheet.name}”. If it belongs to your directorate, ask for it to be shared with your group, then pick it again with Change sheet.`
+      : `Google Sheets returned an error (${r.status}). Try again in a moment.`);
+    e.status = r.status; throw e;
+  };
+  const meta = await api('?fields=sheets.properties.title');
+  const titles = meta.sheets.map(t => t.properties.title);
+  const tab = titles.find(t => /^form responses/i.test(t)) || titles[0];
+  const data = await api(`/values/${encodeURIComponent(`'${tab.replace(/'/g, "''")}'`)}?valueRenderOption=FORMATTED_VALUE`);
+  return data.values || [];
+}
+
+async function loadSheet(sheet, first) {
+  const rows = await sheetRows(sheet);
+  const prevCount = applicants.length;
+  applicants = buildApplicants(rows, true);
+  liveSheet = sheet; lastRefresh = Date.now();
+  source = { kind: 'sheet', name: sheet.name };
+  showLoaded(first, first ? 0 : Math.max(0, applicants.length - prevCount));
+  clearInterval(refreshTimer);
+  refreshTimer = setInterval(refreshLive, REFRESH_MS);
+}
+async function refreshLive() {
+  if (!liveSheet || document.hidden) return;
+  if (!gToken || Date.now() > gTokenExp - 30000) {
+    stopLive();
+    showImportError('Live updates paused because your Google session expired. Click Reconnect to resume.');
+    $('#changeFile').textContent = 'Reconnect';
+    return;
+  }
+  try { await loadSheet(liveSheet, false); showImportError(''); }
+  catch (e) { if (e.status === 401) { gToken = null; refreshLive(); } else showImportError(e.message); }
+}
+function stopLive() { clearInterval(refreshTimer); refreshTimer = null; liveSheet = null; }
+
+async function connectGoogle(forcePick) {
+  showImportError('');
+  const btn = $('#gSignIn'); btn.disabled = true;
+  try {
+    await getToken();
+    let sheet = forcePick ? null : savedSheet();
+    if (!sheet) {
+      sheet = await chooseSheet();
+      if (!sheet) { if (!source) updateGoogleButton(); return; }
+      store.set('cad.sheet', JSON.stringify(sheet));
+    }
+    stopLive();
+    await loadSheet(sheet, true);
+  } catch (e) {
+    showImportError(e.message);
+  } finally { btn.disabled = false; }
+}
+
+$('#gSignIn').addEventListener('click', () => connectGoogle(false));
+document.addEventListener('visibilitychange', () => { if (!document.hidden && liveSheet && Date.now() - lastRefresh > 30000) refreshLive(); });
+updateGoogleButton();
 
 const norm = s => s.toLowerCase().replace(/[^a-z0-9]/g, '');
 function lev(a, b) {
@@ -433,7 +571,7 @@ function renderList() {
   if (activeOption >= shown.length) activeOption = shown.length - 1;
   $('#appList').innerHTML = shown.length
     ? shown.map((a, k) => `<li role="option" id="opt-${a.id}" data-id="${a.id}" aria-selected="${currentApplicant === a.id}" class="${k === activeOption ? 'active' : ''}"><span class="opt-name">${esc(a.name)}</span><span class="opt-meta">${esc([a.alt, a.date].filter(Boolean).join(' · '))}</span></li>`).join('')
-    : '<li class="opt-empty" role="presentation">No matching applicants</li>';
+    : `<li class="opt-empty" role="presentation">${applicants.length ? 'No matching applicants' : 'No applications yet'}</li>`;
   $('#appSearch').setAttribute('aria-activedescendant', activeOption >= 0 && shown[activeOption] ? 'opt-' + shown[activeOption].id : '');
   const act = $('#appList .active'); if (act) act.scrollIntoView({ block: 'nearest' });
 }
@@ -442,8 +580,8 @@ function closeList() { $('#appList').hidden = true; $('#appSearch').setAttribute
 function selectApplicant(a) {
   currentApplicant = a.id;
   $('#appSearch').value = a.name; closeList();
-  state = { applicant: a.alt ? `${a.name} (${a.alt})` : a.name, answers: a.answers.map(x => ({ ...x })), baseline: '', example: false };
-  $('#applicant').value = state.applicant; $('#baseline').value = '';
+  state = { applicant: a.alt ? `${a.name} (${a.alt})` : a.name, answers: a.answers.map(x => ({ ...x })), example: false };
+  $('#applicant').value = state.applicant;
   renderAnswers(); run();
 }
 
@@ -453,8 +591,14 @@ const dz = $('#dropzone');
 ['dragleave', 'drop'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove('is-over'); }));
 dz.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) importFile(f); });
 $('#changeFile').addEventListener('click', () => {
-  applicants = []; currentApplicant = null; closeList();
-  $('#picker').hidden = true; $('#dropzone').hidden = false; $('#fileInput').click();
+  if (source && source.kind === 'sheet') {
+    const reconnect = $('#changeFile').textContent === 'Reconnect';
+    $('#changeFile').textContent = 'Change sheet';
+    connectGoogle(!reconnect);
+  } else { showSourceChoice(); $('#fileInput').click(); }
+});
+$('#signOut').addEventListener('click', () => {
+  stopLive(); gToken = null; gTokenExp = 0; showImportError(''); showSourceChoice();
 });
 $('#appSort').addEventListener('change', () => { if (!$('#appList').hidden) renderList(); });
 $('#appSearch').addEventListener('focus', openList);
@@ -483,7 +627,7 @@ function schedule() { clearTimeout(timer); timer = setTimeout(run, 300); }
 /* ---------- Render results ---------- */
 const BANDS = {
   low: ['Low indicators', 'Process normally'],
-  mid: ['Read closely', 'Compare with Discord'],
+  mid: ['Read closely', 'Check marked text'],
   high: ['Verify in person', 'Run follow-up'],
   none: ['No input', 'Paste answers']
 };
@@ -494,7 +638,7 @@ const WHY = {
   phrase: 'Stock lines like “valuable asset” and “commitment to excellence”.',
   rhythm: 'People mix short and long sentences (40%+ variation). AI tends to keep them even.',
   specific: 'Names, numbers, dates and division terms. Generic answers that could fit any group are typical of AI.',
-  dash: 'A common ChatGPT habit. Some phones insert them too, so check their Discord.',
+  dash: 'A common ChatGPT habit. Some phones insert them too, so weigh this lightly.',
   triplet: 'Repeated “X, Y, and Z” lists of qualities.',
   polish: 'No lowercase i, slang or skipped apostrophes. Weak alone, since people tidy up for applications.'
 };
@@ -525,26 +669,21 @@ function run() {
   const terms = ($('#terms').value || '').split(',').map(s => s.trim()).filter(Boolean);
   const filled = state.answers.map((x, i) => ({ ...x, i })).filter(x => x.a.trim());
   const all = filled.map(x => x.a).join('\n\n');
-  const baseProf = profile(state.baseline || '');
-  const hasBase = baseProf.words >= 40;
   const warnings = [];
 
   if (!filled.length) {
     const [t, s] = BANDS.none;
     $('#stamp').className = 'stamp band-none'; $('#stamp').innerHTML = `${t}<small>${s}</small>`;
     $('#summary').textContent = "Add an applicant's answers to begin."; $('#needle').style.left = '0%'; $('#indexLine').textContent = '';
-    ['#signals', '#baseTable', '#per', '#marked', '#followups', '#warnings'].forEach(id => { $(id).innerHTML = ''; });
-    $('#baseSec').hidden = true; $('#perSec').hidden = true; lastReport = ''; announce('No answers to screen.');
+    ['#signals', '#per', '#marked', '#followups', '#warnings'].forEach(id => { $(id).innerHTML = ''; });
+    $('#perSec').hidden = true; lastReport = ''; announce('No answers to screen.');
     return;
   }
 
-  const res = analyze(all, { base: hasBase ? baseProf : null, terms });
+  const res = analyze(all, { terms });
   const perRes = filled.map(x => ({ ...x, r: analyze(x.a, { terms }) }));
 
   if (res.W < 80) warnings.push(['Short answers.', 'Under 80 words, so treat the result as weak.']);
-  if (!hasBase) warnings.push(state.baseline.trim()
-    ? ['Not enough Discord messages.', `${baseProf.words} words so far; the comparison needs 40.`]
-    : ['No Discord messages.', 'Add some in step 4 for the most reliable check.']);
   let band = res.band;
   if (res.W < 40 && band === 'high') band = 'mid';
 
@@ -572,13 +711,6 @@ function run() {
       <div class="sig-detail">${esc(x.detail)}</div></div>`;
   }).join('');
 
-  // Discord comparison table
-  $('#baseSec').hidden = !hasBase;
-  if (hasBase && res.cmp) {
-    $('#baseTable').innerHTML = '<thead><tr><th scope="col">Habit</th><th scope="col">Discord</th><th scope="col">Form</th><th scope="col">Gap</th></tr></thead><tbody>' +
-      res.cmp.rows.map(r => `<tr><td>${esc(r.label)}</td><td class="num">${esc(r.b)}</td><td class="num">${esc(r.a)}</td><td>${r.flag ? '<span class="flag y">Different</span>' : '<span class="flag n">Similar</span>'}</td></tr>`).join('') + '</tbody>';
-  }
-
   // Per answer: number and band word as well as bar color
   $('#perSec').hidden = perRes.length < 2;
   $('#per').innerHTML = perRes.map(x => {
@@ -590,35 +722,47 @@ function run() {
   // Marked text
   $('#marked').innerHTML = perRes.map(x => `<div class="marked-item"><span class="mq">Q${x.i + 1}${x.q ? ' · ' + esc(x.q) : ''}</span>${markText(x.a, x.r.spans)}</div>`).join('');
 
-  // Follow-up questions
-  const fu = [];
-  const words = [...res.strongWords.entries()].sort((a, b) => b[1] - a[1]).map(e => e[0]);
-  const mild = [...res.mildWords.entries()].sort((a, b) => b[1] - a[1]).map(e => e[0]);
-  const pick = (words.length ? words : mild).slice(0, 2);
-  if (pick.length) fu.push(`You wrote “${pick.join('” and “')}”. Without looking it up, what ${pick.length > 1 ? 'do those words' : 'does that word'} mean, and why did you choose ${pick.length > 1 ? 'them' : 'it'}?`);
-  let best = null;
-  for (const x of perRes) for (const sent of sentencesOf(x.a)) {
-    const sc = findSpans(sent).reduce((tot, sp) => tot + ({ v: 1, m: 0.5, p: 1.5, d: 1 })[sp.c], 0);
-    if (sc >= 2 && (!best || sc > best.sc)) best = { s: sent, sc };
-  }
-  if (best) fu.push(`Put this in your own words, out loud: “${best.s.length > 220 ? best.s.slice(0, 217) + '…' : best.s}”`);
-  for (const x of perRes) {
-    const sp = x.r.sig.find(z => z.id === 'specific');
-    if (sp && sp.strength >= 0.6 && fu.length < 5) fu.push(`About ${x.q ? `“${x.q}”` : `answer ${x.i + 1}`}: give a real example. Which group or event was it, who was involved, and roughly when?`);
-  }
-  fu.push('Answer this in the ticket within 5 minutes: “Describe the last training or patrol you attended and one thing you would change about it.” Then paste the reply into step 4.');
-  fu.push('How long did the application take you, and where did you write it?');
-  $('#followups').innerHTML = fu.map(q => `<li>${esc(q)}</li>`).join('');
+  // Follow-up questions, grouped by application question. They test whether an answer is the applicant's own:
+  // can they recall it without looking, back it with real specifics, and say it in their normal voice.
+  const CLAIM = /\b(in (?:a|my|our) (?:previous|past|old|former|last) (?:group|server|division|role|job|team)|one time|when i was|back when|i (?:once|have|had|previously) (?:led|managed|handled|worked|served|hosted|ran|organi[sz]ed|moderated))\b/i;
+  const TRIPLE = /\b[\w'’-]+(?: [\w'’-]+){0,2}, [\w'’-]+(?: [\w'’-]+){0,2},? and [\w'’-]+/i;
+  const clip = str => str.length > 200 ? str.slice(0, 197) + '…' : str;
+  const groups = perRes.filter(x => x.r.index >= 22).map(x => {
+    const qs = ['Without looking at your application, tell me in your own words what you wrote for this question.'];
+    const sents = sentencesOf(x.a);
+    const claim = sents.find(sent => CLAIM.test(sent));
+    const spec = x.r.sig.find(z => z.id === 'specific');
+    if (claim) qs.push(`You wrote: “${clip(claim)}” Which group or situation was that, who else was involved, and roughly when?`);
+    else if (spec && spec.strength >= 0.6) qs.push('This answer could fit almost anyone. What part of it is true only for you? Give one real example from your time in the group.');
+    let best = null;
+    for (const sent of sents) {
+      const sc = findSpans(sent).reduce((tot, sp) => tot + ({ v: 1, m: 0.5, p: 1.5, d: 1 })[sp.c], 0);
+      if (sc >= 2 && sent !== claim && (!best || sc > best.sc)) best = { s: sent, sc };
+    }
+    if (best) qs.push(`Say this part again the way you'd normally say it: “${clip(best.s)}”`);
+    const tri = x.a.match(TRIPLE);
+    if (tri) qs.push(`You listed “${tri[0]}”. Which of those actually describes you best, and when have you shown it here?`);
+    return { x, qs: qs.slice(0, 3) };
+  });
+  const general = [
+    'How long did the application take you, and did anyone or anything help you write it?',
+    'Answer this now in the ticket, within 5 minutes: “Describe the last training or patrol you attended and one thing you would change about it.”'
+  ];
+  const label = x => `Q${x.i + 1}${x.q ? ' · ' + esc(x.q) : ''}`;
+  $('#followups').innerHTML =
+    (groups.length ? groups.map(g => `<div class="fu-group"><p class="fu-q">${label(g.x)}</p><ol>${g.qs.map(q => `<li>${esc(q)}</li>`).join('')}</ol></div>`).join('')
+      : '<p class="hint">No single answer stands out.</p>')
+    + `<div class="fu-group"><p class="fu-q">Any application</p><ol>${general.map(q => `<li>${esc(q)}</li>`).join('')}</ol></div>`;
 
   // Report text for Discord
   const name = state.applicant.trim() || 'Unnamed applicant';
   const division = ($('#division').value || '').trim();
   lastReport = [
     `**AI screening: ${name}**${division ? ` · ${division}` : ''}`,
-    `Result: ${t} (index ${res.index}/100, ${res.strongCount} strong signals, ${res.W} words)${hasBase ? '' : ' · no Discord sample'}`,
+    `Result: ${t} (index ${res.index}/100, ${res.strongCount} strong signals, ${res.W} words)`,
     ...res.sig.filter(x => x.strength >= 0.25).sort((a, b) => b.weight * b.strength - a.weight * a.strength).map(x => `- ${x.name}: ${x.detail}`),
     perRes.length > 1 ? `Per answer: ${perRes.map(x => `Q${x.i + 1} ${x.r.index}`).join(', ')}` : '',
-    band !== 'low' ? `Follow-up questions:\n${fu.slice(0, 4).map((q, i) => `${i + 1}. ${q}`).join('\n')}` : '',
+    groups.length ? `Follow-up questions:\n${groups.map(g => `Q${g.x.i + 1}${g.x.q ? ` (${g.x.q.length > 70 ? g.x.q.slice(0, 67) + '…' : g.x.q})` : ''}\n${g.qs.map(q => `- ${q}`).join('\n')}`).join('\n')}` : '',
     '_Screening result only. Final decision depends on the follow-up._'
   ].filter(Boolean).join('\n');
 }
