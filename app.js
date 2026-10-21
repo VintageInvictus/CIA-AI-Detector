@@ -698,12 +698,12 @@ function run() {
   $('#marked').innerHTML = perRes.map(x => `<div class="marked-item"><span class="mq">Q${x.i + 1}${x.q ? ' · ' + esc(x.q) : ''}</span>${markText(x.a, x.r.spans)}</div>`).join('');
 
   // Follow-up questions, grouped by application question. They test whether an answer is the applicant's own:
-  // can they recall it without looking, back it with real specifics, and say it in their normal voice.
+  // can they recall it, back it with real specifics, and say it in their normal voice.
   const CLAIM = /\b(in (?:a|my|our) (?:previous|past|old|former|last) (?:group|server|division|role|job|team)|one time|when i was|back when|i (?:once|have|had|previously) (?:led|managed|handled|worked|served|hosted|ran|organi[sz]ed|moderated))\b/i;
   const TRIPLE = /\b[\w'’-]+(?: [\w'’-]+){0,2}, [\w'’-]+(?: [\w'’-]+){0,2},? and [\w'’-]+/i;
   const clip = str => str.length > 200 ? str.slice(0, 197) + '…' : str;
   const groups = perRes.filter(x => x.r.index >= 22).map(x => {
-    const qs = ['Without looking at your application, tell me in your own words what you wrote for this question.'];
+    const qs = ['Tell me in your own words what you wrote for this question.'];
     const sents = sentencesOf(x.a);
     const claim = sents.find(sent => CLAIM.test(sent));
     const spec = x.r.sig.find(z => z.id === 'specific');
@@ -729,7 +729,7 @@ function run() {
   const name = state.applicant.trim() || 'Unnamed applicant';
   const shortQ = q => q.length > 70 ? q.slice(0, 67) + '…' : q;
   const clipQuotes = (q, n) => q.replace(/“([^”]*)”/g, (m, inner) => inner.length > n ? `“${inner.slice(0, n - 1)}…”` : m);
-  const RECALL = 'Without looking, tell me in your own words what you wrote.';
+  const RECALL = 'Tell me in your own words what you wrote.';
   const buildReport = lvl => {
     const quote = lvl >= 2 ? 80 : lvl >= 1 ? 110 : 160, perQ = lvl >= 2 ? 1 : 2, maxQ = lvl >= 3 ? 3 : 6;
     const out = [
