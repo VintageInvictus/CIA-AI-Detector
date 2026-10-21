@@ -26,7 +26,7 @@ Nine signals. No single one means much; the result rises only when several agree
 
 - **Low:** process normally. **Read closely:** read the marked text and the Discord comparison yourself. **Verify in person:** run the follow-up before deciding.
 - Deny on the follow-up, never on the score. Formal writers, non-native English speakers and Grammarly users can trip some signals.
-- Follow-up: open a ticket and ask the generated questions for the flagged answers. They test whether the answer is the applicant's own: can they recall it, back it with real specifics, and say it in their normal voice.
+- Follow-up: ask the generated questions in DMs for the flagged answers. They test whether the answer is the applicant's own: can they recall it, back it with real specifics, and say it in their normal voice.
 - Make the form harder to fake: ask about trainings or raids only members would know, add a notice that AI-written answers are denied and answers may be checked in voice, and include a scenario that needs your SOP.
 
 ## Files

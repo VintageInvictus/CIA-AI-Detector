@@ -716,7 +716,11 @@ function run() {
   const CLAIM = /\b(in (?:a|my|our) (?:previous|past|old|former|last) (?:group|server|division|role|job|team)|one time|when i was|back when|i (?:once|have|had|previously) (?:led|managed|handled|worked|served|hosted|ran|organi[sz]ed|moderated))\b/i;
   const TRIPLE = /\b[\w'’-]+(?: [\w'’-]+){0,2}, [\w'’-]+(?: [\w'’-]+){0,2},? and [\w'’-]+/i;
   const clip = str => str.length > 200 ? str.slice(0, 197) + '…' : str;
-  const groups = perRes.filter(x => x.r.index >= 22).map(x => {
+  // Follow-ups only for answers in the red (50+). If the overall result is flagged but no single answer is red
+  // (patterns spread thinly), fall back to the top one or two answers scoring 35+. Low results get none.
+  let followUp = perRes.filter(x => x.r.index >= 50);
+  if (!followUp.length && band !== 'low') followUp = [...perRes].sort((p, q) => q.r.index - p.r.index).filter(x => x.r.index >= 35).slice(0, 2).sort((p, q) => p.i - q.i);
+  const groups = followUp.map(x => {
     const qs = ['Tell me in your own words what you wrote for this question.'];
     const sents = sentencesOf(x.a);
     const claim = sents.find(sent => CLAIM.test(sent));
