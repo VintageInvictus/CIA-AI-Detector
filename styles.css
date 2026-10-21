@@ -257,6 +257,8 @@ th { font-family: var(--font-mono); font-weight: 500; font-size: var(--text-xs);
 td.num { font-family: var(--font-mono); }
 .flag { font-family: var(--font-mono); font-size: var(--text-xs); padding: 2px 8px; border-radius: var(--radius-sm); white-space: nowrap; }
 .flag.y { background: var(--color-bad-soft); color: var(--color-bad); } .flag.n { color: var(--color-fg-muted); }
+tr.gap td { background: color-mix(in srgb, var(--color-bad-soft) 45%, transparent); }
+td.num { white-space: nowrap; }
 
 /* Per answer */
 .per { display: grid; gap: var(--space-2); }

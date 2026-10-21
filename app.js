@@ -75,7 +75,7 @@ function findSpans(text) {
 
 /* ---------- Writing profile (used for the Discord comparison) ---------- */
 function profile(text) {
-  const toks = tokens(text), W = toks.length || 1;
+  const toks = tokens(text), W = toks.length || 1, sents = sentencesOf(text);
   let vs = 0, longW = 0;
   for (const m of toks) {
     const w = m[0].toLowerCase().replace(/’/g, "'");
@@ -86,30 +86,50 @@ function profile(text) {
   const miss = count(MISSING_APOS, text), cont = count(CONTRACTION, text);
   return {
     words: toks.length,
+    avgSent: sents.length ? toks.length / sents.length : null,
     longRatio: longW / W,
     aiRate: vs / W * 100,
+    capStart: sents.length ? sents.filter(x => /^[^A-Za-z]*[A-Z]/.test(x)).length / sents.length : null,
     lowerI: (lowI + upI) ? lowI / (lowI + upI) : null,
     iCount: lowI + upI,
-    slang: count(SLANG, text) / W * 100,
     missApos: (miss + cont) ? miss / (miss + cont) : null,
+    slang: count(SLANG, text) / W * 100,
+    commas: count(/,/g, text) / W * 100,
     dashes: count(DASH, text),
-    commas: count(/,/g, text) / W * 100
+    dashRate: count(DASH, text) / W * 100,
+    emoji: count(/\p{Extended_Pictographic}/gu, text) / W * 100
   };
 }
 
+// Compares how someone writes in Discord with how they wrote the application.
+// Only gaps that extra effort on a form can't easily explain count toward the signal (w > 0); the rest are shown for context.
 function compareBaseline(app, base) {
-  const rows = [];
   const pct = x => x == null ? '–' : Math.round(x * 100) + '%';
-  const add = (label, b, a, flag, w, short) => rows.push({ label, b, a, flag, w, short });
-  add('Long words (9+ letters)', pct(base.longRatio), pct(app.longRatio), app.longRatio >= 2 * base.longRatio && app.longRatio >= 0.1, 1, 'vocabulary level');
-  add('AI-typical words per 100', r1(base.aiRate), r1(app.aiRate), app.aiRate >= 1.5 && base.aiRate < 0.5, 1, 'AI-typical words');
-  add('Em / en dashes', base.dashes, app.dashes, app.dashes >= 1 && base.dashes === 0, 0.5, 'dashes');
-  add("Lowercase 'i'", pct(base.lowerI), pct(app.lowerI), base.lowerI != null && base.lowerI >= 0.5 && app.iCount >= 3 && app.lowerI === 0, 0.35, 'lowercase i');
-  add('Skipped apostrophes (dont, im)', pct(base.missApos), pct(app.missApos), base.missApos != null && base.missApos >= 0.5 && app.missApos === 0, 0.4, 'apostrophes');
-  add('Slang per 100 words', r1(base.slang), r1(app.slang), base.slang >= 3 && app.slang === 0, 0.25, 'slang');
-  add('Commas per 100 words', r1(base.commas), r1(app.commas), app.commas >= 5 && app.commas >= 3 * Math.max(base.commas, 0.5), 0.25, 'commas');
+  const num = x => x == null ? '–' : String(r1(x));
+  const rows = [];
+  const add = (label, short, b, a, fmt, flag, w) => rows.push({ label, short, b, a, fmt, flag: !!flag, w });
+  add('Words per sentence', 'sentence length', base.avgSent, app.avgSent, num, false, 0);
+  add('Long words (9+ letters)', 'vocabulary level', base.longRatio, app.longRatio, pct, app.longRatio >= 2 * base.longRatio && app.longRatio >= 0.1, 1);
+  add('AI-typical words per 100', 'AI-typical words', base.aiRate, app.aiRate, num, app.aiRate >= 1.5 && base.aiRate < 0.5, 1);
+  add('Sentences starting with a capital', 'capitals', base.capStart, app.capStart, pct, false, 0);
+  add("Lowercase 'i'", 'lowercase i', base.lowerI, app.lowerI, pct, base.lowerI != null && base.lowerI >= 0.5 && app.iCount >= 3 && app.lowerI === 0, 0.35);
+  add('Skipped apostrophes (dont, im)', 'apostrophes', base.missApos, app.missApos, pct, base.missApos != null && base.missApos >= 0.5 && app.missApos === 0, 0.4);
+  add('Slang per 100 words', 'slang', base.slang, app.slang, num, base.slang >= 3 && app.slang === 0, 0.25);
+  add('Commas per 100 words', 'commas', base.commas, app.commas, num, app.commas >= 5 && app.commas >= 3 * Math.max(base.commas, 0.5), 0.25);
+  add('Dashes per 100 words (— or –)', 'dashes', base.dashRate, app.dashRate, num, app.dashes >= 1 && base.dashes === 0, 0.5);
+  add('Emoji per 100 words', 'emoji', base.emoji, app.emoji, num, false, 0);
   const total = rows.reduce((t, r) => t + (r.flag ? r.w : 0), 0);
   return { rows, strength: clamp(total / 2), flagged: rows.filter(r => r.flag) };
+}
+function diffLabel(b, a) {
+  if (b == null || a == null) return '–';
+  if (b === 0 && a === 0) return 'Same';
+  if (b === 0) return 'Only in application';
+  if (a === 0) return 'Only in Discord';
+  if (a / b >= 3) return `${r1(a / b)}× more`;
+  if (b / a >= 3) return `${r1(b / a)}× less`;
+  const d = Math.round((a - b) / b * 100);
+  return d === 0 ? 'Same' : `${d > 0 ? '+' : ''}${d}%`;
 }
 
 /* ---------- Main analysis ---------- */
@@ -206,13 +226,15 @@ function analyze(text, ctx = {}) {
 }
 
 /* ---------- Examples ---------- */
+const DISCORD_SAMPLE = 'yo anyone on rn\nngl that raid was kinda rough lol we got wiped at the gate like 3 times\ni can host training later if a HR is free\nidk who has the keycard for site b tho\nbro my wifi died mid patrol 💀\ngonna grind for sgt this week fr\nwho was the guy that kept tking at spawn\nim on in 10 mins if anyone wants to do drills\nthat new map is so confusing i got lost twice lmao\ndont forget training is at 6 est';
 const EX_AI = {
   applicant: 'Example: ShadowOps_Recruit',
   answers: [
     { q: 'Why do you want to join the CIA?', a: 'I want to join the CIA because I am deeply passionate about intelligence work and the strategic thinking it requires. The CIA represents a unique opportunity to contribute to a disciplined, collaborative team while developing my leadership and communication skills. Furthermore, I believe that my dedication, attention to detail, and commitment to excellence would make me a valuable asset to the agency. I am eager to learn from experienced operatives and to help foster a positive, professional environment within the group.' },
     { q: 'Describe a time you handled a difficult situation.', a: 'In a previous group, I encountered a situation where two members were in conflict over a training decision. Rather than taking sides, I listened to both perspectives, identified the root of the disagreement, and facilitated a calm discussion. Ultimately, we reached a compromise that satisfied everyone involved. This experience taught me the importance of patience, empathy, and clear communication — qualities I would bring to every operation.' },
     { q: 'What would you do if a superior gave you an order you disagreed with?', a: 'If a superior gave me an order I disagreed with, I would first follow the chain of command and carry out the order, provided it does not violate any rules. Afterward, I would respectfully raise my concerns in private, ensuring that my feedback is constructive and solution-oriented. Maintaining discipline is paramount in a mil-sim environment, but open communication is equally essential for the team to thrive.' }
-  ]
+  ],
+  baseline: DISCORD_SAMPLE
 };
 const EX_HUMAN = {
   applicant: 'Example: kaden_fan22',
@@ -220,11 +242,12 @@ const EX_HUMAN = {
     { q: 'Why do you want to join the CIA?', a: 'i want to join cia because ive been in the group for like 2 months as a recruit and i liked the way the patrols are run. my friend Kaden got me in and i went to the sunday trainings. i think im good at staying calm during raids and i want to try the intel side since i only did infantry before' },
     { q: 'Describe a time you handled a difficult situation.', a: 'one time in my old group (US Army roblox) a guy kept team killing at base and nobody was doing anything. i recorded it and sent it to a mod instead of arguing with him in chat, he got kicked after like a day. i was annoyed tho cause it ruined 2 trainings' },
     { q: 'What would you do if a superior gave you an order you disagreed with?', a: 'honestly i would do it if it doesnt break rules. then dm them after and say why i didnt agree. i wouldnt argue in front of everyone because thats what made my last group fall apart' }
-  ]
+  ],
+  baseline: DISCORD_SAMPLE
 };
 
 /* ---------- State and inputs ---------- */
-let state = { applicant: '', answers: [{ q: '', a: '' }], example: false };
+let state = { applicant: '', answers: [{ q: '', a: '' }], baseline: '', example: false };
 $('#terms').value = store.get('cad.terms') || '';
 $('#division').value = store.get('cad.division') || '';
 
@@ -246,8 +269,8 @@ function renderAnswers() {
     </div>`).join('');
 }
 function load(ex) {
-  state = { applicant: ex.applicant, answers: ex.answers.map(a => ({ ...a })), example: true };
-  $('#applicant').value = state.applicant;
+  state = { applicant: ex.applicant, answers: ex.answers.map(a => ({ ...a })), baseline: ex.baseline, example: true };
+  $('#applicant').value = state.applicant; $('#baseline').value = state.baseline;
   renderAnswers(); run();
 }
 function touched() { state.example = false; schedule(); }
@@ -262,13 +285,14 @@ $('#answers').addEventListener('click', e => {
 });
 $('#addAnswer').addEventListener('click', () => { state.answers.push({ q: '', a: '' }); renderAnswers(); $('#q-' + (state.answers.length - 1)).focus(); });
 $('#applicant').addEventListener('input', e => { state.applicant = e.target.value; touched(); });
+$('#baseline').addEventListener('input', e => { state.baseline = e.target.value; touched(); });
 $('#terms').addEventListener('input', e => { store.set('cad.terms', e.target.value); schedule(); });
 $('#division').addEventListener('input', e => { store.set('cad.division', e.target.value); schedule(); });
 $('#exAI').addEventListener('click', () => load(EX_AI));
 $('#exHuman').addEventListener('click', () => load(EX_HUMAN));
 $('#clearAll').addEventListener('click', () => {
-  state = { applicant: '', answers: [{ q: '', a: '' }], example: false };
-  $('#applicant').value = ''; renderAnswers(); run(); $('#a-0').focus();
+  state = { applicant: '', answers: [{ q: '', a: '' }], baseline: '', example: false };
+  $('#applicant').value = ''; $('#baseline').value = ''; renderAnswers(); run(); $('#a-0').focus();
 });
 
 /* ---------- Importing a Google Forms export (.zip or .csv) ---------- */
@@ -580,8 +604,8 @@ function closeList() { $('#appList').hidden = true; $('#appSearch').setAttribute
 function selectApplicant(a) {
   currentApplicant = a.id;
   $('#appSearch').value = a.name; closeList();
-  state = { applicant: a.alt ? `${a.name} (${a.alt})` : a.name, answers: a.answers.map(x => ({ ...x })), example: false };
-  $('#applicant').value = state.applicant;
+  state = { applicant: a.alt ? `${a.name} (${a.alt})` : a.name, answers: a.answers.map(x => ({ ...x })), baseline: '', example: false };
+  $('#applicant').value = state.applicant; $('#baseline').value = '';
   renderAnswers(); run();
 }
 
@@ -627,7 +651,7 @@ function schedule() { clearTimeout(timer); timer = setTimeout(run, 300); }
 /* ---------- Render results ---------- */
 const BANDS = {
   low: ['Low indicators', 'Process normally'],
-  mid: ['Read closely', 'Check marked text'],
+  mid: ['Read closely', 'Compare with Discord'],
   high: ['Verify in person', 'Run follow-up'],
   none: ['No input', 'Paste answers']
 };
@@ -638,7 +662,7 @@ const WHY = {
   phrase: 'Stock lines like “valuable asset” and “commitment to excellence”.',
   rhythm: 'People mix short and long sentences (40%+ variation). AI tends to keep them even.',
   specific: 'Names, numbers, dates and division terms. Generic answers that could fit any group are typical of AI.',
-  dash: 'A common ChatGPT habit. Some phones insert them too, so weigh this lightly.',
+  dash: 'A common ChatGPT habit. Some phones insert them too, so check their Discord messages.',
   triplet: 'Repeated “X, Y, and Z” lists of qualities.',
   polish: 'No lowercase i, slang or skipped apostrophes. Weak alone, since people tidy up for applications.'
 };
@@ -669,21 +693,26 @@ function run() {
   const terms = ($('#terms').value || '').split(',').map(s => s.trim()).filter(Boolean);
   const filled = state.answers.map((x, i) => ({ ...x, i })).filter(x => x.a.trim());
   const all = filled.map(x => x.a).join('\n\n');
+  const baseProf = profile(state.baseline || '');
+  const hasBase = baseProf.words >= 40;
   const warnings = [];
 
   if (!filled.length) {
     const [t, s] = BANDS.none;
     $('#stamp').className = 'stamp band-none'; $('#stamp').innerHTML = `${t}<small>${s}</small>`;
     $('#summary').textContent = "Add an applicant's answers to begin."; $('#needle').style.left = '0%'; $('#indexLine').textContent = '';
-    ['#signals', '#per', '#marked', '#followups', '#warnings'].forEach(id => { $(id).innerHTML = ''; });
-    $('#perSec').hidden = true; lastReport = ''; announce('No answers to screen.');
+    ['#signals', '#baseTable', '#baseSummary', '#per', '#marked', '#followups', '#warnings'].forEach(id => { $(id).innerHTML = ''; });
+    $('#baseSec').hidden = true; $('#perSec').hidden = true; lastReport = ''; announce('No answers to screen.');
     return;
   }
 
-  const res = analyze(all, { terms });
+  const res = analyze(all, { base: hasBase ? baseProf : null, terms });
   const perRes = filled.map(x => ({ ...x, r: analyze(x.a, { terms }) }));
 
   if (res.W < 80) warnings.push(['Short answers.', 'Under 80 words, so treat the result as weak.']);
+  if (!hasBase) warnings.push(state.baseline.trim()
+    ? ['Not enough Discord messages.', `${baseProf.words} words so far; the comparison needs 40.`]
+    : ['No Discord messages.', 'Paste some of theirs to compare how they normally write.']);
   let band = res.band;
   if (res.W < 40 && band === 'high') band = 'mid';
 
@@ -710,6 +739,15 @@ function run() {
       <div class="pips ${x.weight >= 2.5 && x.strength >= 0.6 ? 'hot' : ''}" role="img" aria-label="Strength ${on} of 5">${[0, 1, 2, 3, 4].map(k => `<span class="${k < on ? 'on' : ''}"></span>`).join('')}<em aria-hidden="true">${on}/5</em></div>
       <div class="sig-detail">${esc(x.detail)}</div></div>`;
   }).join('');
+
+  // Discord vs. application
+  $('#baseSec').hidden = !hasBase;
+  if (hasBase && res.cmp) {
+    const n = res.cmp.flagged.length;
+    $('#baseSummary').textContent = n ? `${n} big gap${n === 1 ? '' : 's'}: ${res.cmp.flagged.map(r => r.short).join(', ')}.` : 'No big gaps. They write the form much like they talk.';
+    $('#baseTable').innerHTML = '<thead><tr><th scope="col">Aspect</th><th scope="col">Discord</th><th scope="col">Application</th><th scope="col">Difference</th></tr></thead><tbody>' +
+      res.cmp.rows.map(r => `<tr class="${r.flag ? 'gap' : ''}"><td>${esc(r.label)}</td><td class="num">${esc(r.fmt(r.b))}</td><td class="num">${esc(r.fmt(r.a))}</td><td class="num">${esc(diffLabel(r.b, r.a))}${r.flag ? ' <span class="flag y">Big gap</span>' : ''}</td></tr>`).join('') + '</tbody>';
+  }
 
   // Per answer: number and band word as well as bar color
   $('#perSec').hidden = perRes.length < 2;
@@ -759,7 +797,7 @@ function run() {
   const division = ($('#division').value || '').trim();
   lastReport = [
     `**AI screening: ${name}**${division ? ` · ${division}` : ''}`,
-    `Result: ${t} (index ${res.index}/100, ${res.strongCount} strong signals, ${res.W} words)`,
+    `Result: ${t} (index ${res.index}/100, ${res.strongCount} strong signals, ${res.W} words)${hasBase ? '' : ' · no Discord messages'}`,
     ...res.sig.filter(x => x.strength >= 0.25).sort((a, b) => b.weight * b.strength - a.weight * a.strength).map(x => `- ${x.name}: ${x.detail}`),
     perRes.length > 1 ? `Per answer: ${perRes.map(x => `Q${x.i + 1} ${x.r.index}`).join(', ')}` : '',
     groups.length ? `Follow-up questions:\n${groups.map(g => `Q${g.x.i + 1}${g.x.q ? ` (${g.x.q.length > 70 ? g.x.q.slice(0, 67) + '…' : g.x.q})` : ''}\n${g.qs.map(q => `- ${q}`).join('\n')}`).join('\n')}` : '',

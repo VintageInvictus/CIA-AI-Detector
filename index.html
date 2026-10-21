@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Public+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap">
-  <link rel="stylesheet" href="styles.css?v=6">
+  <link rel="stylesheet" href="styles.css?v=7">
   <script>
     // Apply the saved theme before first paint so the page doesn't flash.
     try { var t = localStorage.getItem('cad.theme'); if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t); } catch (e) {}
@@ -114,6 +114,11 @@
           </button>
         </fieldset>
 
+        <fieldset class="block">
+          <legend>Their Discord messages</legend>
+          <textarea id="baseline" rows="6" aria-label="Their Discord messages" placeholder="Paste 10–20 of their recent messages from the main server, one per line"></textarea>
+        </fieldset>
+
         <div class="actions">
           <button type="button" class="btn" id="exAI">Load AI example</button>
           <button type="button" class="btn" id="exHuman">Load genuine example</button>
@@ -153,6 +158,12 @@
           <div id="signals"></div>
         </div>
 
+        <div class="block" id="baseSec">
+          <h3>Discord vs. application</h3>
+          <p class="hint" id="baseSummary"></p>
+          <div class="table-wrap"><table id="baseTable"></table></div>
+        </div>
+
         <div class="block" id="perSec">
           <h3>Per answer</h3>
           <div class="per" id="per"></div>
@@ -183,6 +194,6 @@
 
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script src="https://apis.google.com/js/api.js" async defer></script>
-  <script src="app.js?v=6"></script>
+  <script src="app.js?v=7"></script>
 </body>
 </html>
