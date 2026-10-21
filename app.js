@@ -102,8 +102,7 @@ function profile(text) {
     slang: count(SLANG, text) / W * 100,
     commas: count(/,/g, text) / W * 100,
     dashes: count(DASH, text),
-    dashRate: count(DASH, text) / W * 100,
-    emoji: count(/\p{Extended_Pictographic}/gu, text) / W * 100
+    dashRate: count(DASH, text) / W * 100
   };
 }
 
@@ -123,7 +122,6 @@ function compareBaseline(app, base) {
   add('Slang per 100 words', 'slang', base.slang, app.slang, num, base.slang >= 3 && app.slang === 0, 0.25);
   add('Commas per 100 words', 'commas', base.commas, app.commas, num, app.commas >= 5 && app.commas >= 3 * Math.max(base.commas, 0.5), 0.25);
   add('Dashes per 100 words (— or –)', 'dashes', base.dashRate, app.dashRate, num, app.dashes >= 1 && base.dashes === 0, 0.5);
-  add('Emoji per 100 words', 'emoji', base.emoji, app.emoji, num, false, 0);
   const total = rows.reduce((t, r) => t + (r.flag ? r.w : 0), 0);
   return { rows, strength: clamp(total / 2), flagged: rows.filter(r => r.flag) };
 }
@@ -484,6 +482,15 @@ async function connectGoogle(forcePick) {
   const btn = $('#gSignIn'); btn.disabled = true;
   try {
     await getToken();
+    // Only roster members may use the site, so check the account here too, not just at the terminal.
+    const who = await rosterLookup(await googleEmail());
+    if (!who) {
+      const email = await googleEmail().catch(() => 'This account');
+      gToken = null; gTokenExp = 0; stopLive(); showSourceChoice();
+      showImportError(`Access denied: ${email} is not on the High Command roster.`);
+      return;
+    }
+    operator.set(who); showOperator();
     let sheet = forcePick ? null : savedSheet();
     if (!sheet) {
       sheet = await chooseSheet();
