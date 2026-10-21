@@ -289,3 +289,11 @@ mark.d { background: var(--color-hl-format); text-decoration-line: underline; te
   html { scroll-behavior: auto; }
   *, *::before, *::after { transition: none !important; }
 }
+
+/* ---------- Text pages (privacy) ---------- */
+.doc { max-width: 760px; padding-block: var(--space-6) var(--space-7); display: grid; gap: var(--space-3); }
+.doc h1 { font-family: var(--font-display); font-size: clamp(2rem, 4vw, 2.5rem); text-transform: uppercase; }
+.doc h2 { font-size: var(--text-lg); margin-top: var(--space-4); }
+.doc p { max-width: 68ch; }
+.doc-date { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-fg-muted); }
+.footer a { color: var(--color-band-fg); }
