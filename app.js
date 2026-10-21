@@ -727,11 +727,10 @@ function run() {
   // Report for Discord. It always fits one message (2,000 characters without Nitro):
   // if the full version is too long, it is trimmed step by step, least important detail first.
   const name = state.applicant.trim() || 'Unnamed applicant';
-  const shortQ = q => q.length > 70 ? q.slice(0, 67) + '…' : q;
   const clipQuotes = (q, n) => q.replace(/“([^”]*)”/g, (m, inner) => inner.length > n ? `“${inner.slice(0, n - 1)}…”` : m);
   const RECALL = 'Tell me in your own words what you wrote.';
   const buildReport = lvl => {
-    const quote = lvl >= 2 ? 80 : lvl >= 1 ? 110 : 160, perQ = lvl >= 2 ? 1 : 2, maxQ = lvl >= 3 ? 3 : 6;
+    const quote = lvl >= 2 ? 80 : lvl >= 1 ? 110 : 160, perQ = lvl >= 2 ? 1 : 2, maxQ = lvl >= 5 ? 1 : lvl >= 4 ? 2 : lvl >= 3 ? 3 : 6;
     const out = [
       `## AI screening: ${name}`,
       source ? `Form: ${source.name}${state.submitted ? ` · submitted ${state.submitted}` : ''}` : '',
@@ -751,7 +750,7 @@ function run() {
       out.push(`For each question below, first ask: “${RECALL}”`);
       const top = [...groups].sort((x, y) => y.x.r.index - x.x.r.index).slice(0, maxQ).sort((x, y) => x.x.i - y.x.i);
       top.forEach(g => {
-        out.push(`**Q${g.x.i + 1}** · ${shortQ(g.x.q || 'Question ' + (g.x.i + 1))} (${g.x.r.index}/100)`);
+        out.push(`**Q${g.x.i + 1}** · ${g.x.q || 'Question ' + (g.x.i + 1)} (${g.x.r.index}/100)`);
         g.qs.slice(1, 1 + perQ).forEach(q => out.push(`- ${clipQuotes(q, quote)}`));
       });
       if (groups.length > top.length) out.push(`+${groups.length - top.length} more flagged question${groups.length - top.length === 1 ? '' : 's'} on the site.`);
@@ -760,7 +759,7 @@ function run() {
   };
   const LIMIT = 2000;
   let report = buildReport(0);
-  for (let lvl = 1; report.length > LIMIT && lvl <= 4; lvl++) report = buildReport(lvl);
+  for (let lvl = 1; report.length > LIMIT && lvl <= 5; lvl++) report = buildReport(lvl);
   if (report.length > LIMIT) report = report.slice(0, LIMIT - 1) + '…';
   lastReport = report;
 }
