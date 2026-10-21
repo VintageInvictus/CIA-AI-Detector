@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=Merriweather:ital,wght@0,300;0,400;0,700;1,400&display=swap">
-  <link rel="stylesheet" href="styles.css?v=23">
+  <link rel="stylesheet" href="styles.css?v=24">
   <script>
     // Apply the saved theme before first paint so the page doesn't flash. Night is the default.
     try { if (localStorage.getItem('cad.theme') === 'light') document.documentElement.setAttribute('data-theme', 'light'); } catch (e) {}
@@ -30,7 +30,7 @@
   <div id="gate" class="gate" role="dialog" aria-modal="true" aria-labelledby="gate-title">
     <div class="gate-box">
       <div class="gate-head">
-        <img src="assets/seal-144.png" alt="" width="64" height="64">
+        <div class="coin coin-gate" id="gateCoin" data-coin data-depth="7" data-layers="14" aria-hidden="true"></div>
         <div>
           <span class="gate-kicker">Restricted // High Command only</span>
           <h1 id="gate-title">CIA AI Detector</h1>
@@ -62,7 +62,7 @@
   <div class="band">
     <header class="masthead container">
       <div class="brand">
-        <img class="emblem" src="assets/seal-144.png" alt="" width="56" height="56">
+        <div class="coin coin-header" data-coin data-depth="5" data-layers="10" aria-hidden="true"></div>
         <span class="brand-text">
           <strong>CIA AI Detector <em>· High Command ·</em> <i>Application review</i></strong>
           <small>Intelligence briefing unit // Recruitment screening</small>
@@ -219,6 +219,6 @@
 
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script src="https://apis.google.com/js/api.js" async defer></script>
-  <script src="app.js?v=23"></script>
+  <script src="app.js?v=24"></script>
 </body>
 </html>

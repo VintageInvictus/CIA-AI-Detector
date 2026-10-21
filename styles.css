@@ -116,6 +116,21 @@ a.brand { color: inherit; text-decoration: none; }
 .brand-text small { font-family: var(--font-mono); font-size: var(--text-xs); letter-spacing: .14em; text-transform: uppercase; color: var(--gold-400); }
 @media (max-width: 720px) { .brand-text strong em, .brand-text strong i { display: none; } }
 
+/* ---------- Spinning 3D seal coin ---------- */
+/* Two faces of the seal with stacked gold discs between them for the edge; it turns clockwise (seen from above). */
+.coin { --size: 56px; --speed: 14s; width: var(--size); height: var(--size); flex: none; perspective: 420px; filter: drop-shadow(0 0 7px rgba(197, 155, 39, 0.4)); }
+.coin-body { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; animation: coin-spin var(--speed) linear infinite; }
+.coin-face, .coin-edge { position: absolute; inset: 0; border-radius: 50%; }
+.coin-face { background: url("assets/seal-192.png") center / contain no-repeat; backface-visibility: hidden; -webkit-backface-visibility: hidden; overflow: hidden; }
+.coin-face::after { content: ""; position: absolute; inset: 0; border-radius: 50%;
+  background: linear-gradient(105deg, transparent 38%, rgba(255, 246, 214, 0.5) 50%, transparent 62%) 0 0 / 260% 100% no-repeat;
+  animation: coin-sheen var(--speed) linear infinite; mix-blend-mode: screen; }
+.coin-edge { inset: 1.5%; background: linear-gradient(90deg, var(--gold-700), var(--gold-400) 45%, var(--gold-300) 55%, var(--gold-600)); }
+.coin-gate { --size: 76px; --speed: 7s; }
+.coin-gate.is-fast { --speed: 1.4s; }
+@keyframes coin-spin { to { transform: rotateY(-360deg); } }
+@keyframes coin-sheen { 0% { background-position: 130% 0; } 50% { background-position: -30% 0; } 100% { background-position: 130% 0; } }
+
 /* ---------- Buttons ---------- */
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
@@ -317,7 +332,6 @@ html.session .gate { display: none; }
   background: var(--navy-900); border: 2px solid var(--gold-500); box-shadow: 0 0 60px rgba(4, 9, 18, 0.95), 0 0 0 6px rgba(197, 155, 39, 0.08); }
 @media (max-width: 480px) { .gate-box { padding: var(--space-4); } }
 .gate-head { display: flex; align-items: center; gap: var(--space-4); padding-bottom: var(--space-4); border-bottom: 1px solid rgba(197, 155, 39, 0.3); }
-.gate-head img { width: 64px; height: 64px; flex: none; border-radius: 50%; filter: drop-shadow(0 0 8px rgba(197, 155, 39, 0.45)); }
 .gate-kicker { display: block; font-family: var(--font-mono); font-weight: 700; font-size: var(--text-xs); letter-spacing: .16em; text-transform: uppercase; color: var(--gold-400); }
 .gate-head h1 { font-family: var(--font-display); font-weight: 800; font-size: clamp(1.4rem, 4vw, 1.75rem); letter-spacing: .06em; text-transform: uppercase; color: var(--cream-50); }
 .gate-head p { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--cream-400); }

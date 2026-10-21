@@ -10,6 +10,13 @@ const store = {
   set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
 };
 
+/* ---------- Spinning seal coins: two faces plus stacked gold discs for the edge ---------- */
+document.querySelectorAll('[data-coin]').forEach(el => {
+  const depth = +el.dataset.depth || 5, layers = +el.dataset.layers || 10;
+  const edges = Array.from({ length: layers }, (_, k) => `<span class="coin-edge" style="transform: translateZ(${(-depth / 2 + (depth * k) / (layers - 1)).toFixed(2)}px)"></span>`).join('');
+  el.innerHTML = `<div class="coin-body">${edges}<span class="coin-face" style="transform: translateZ(${depth / 2 + 0.3}px)"></span><span class="coin-face" style="transform: rotateY(180deg) translateZ(${depth / 2 + 0.3}px)"></span></div>`;
+});
+
 /* ---------- Theme toggle: Night (default) and Parchment ---------- */
 const root = document.documentElement;
 const isDark = () => root.dataset.theme !== 'light';
@@ -822,6 +829,7 @@ function showOperator() {
 function gateError(msg) { $('#gateError').textContent = msg; $('#gateError').hidden = !msg; }
 function gateStatus(msg) { $('#gateStatus').textContent = msg; $('#gateStatus').hidden = !msg; }
 function gateBusy(on) {
+  $('#gateCoin').classList.toggle('is-fast', on);
   $('#gateGoogle').disabled = on;
   $('#gateGoogleLabel').textContent = on ? 'Authenticating…' : 'Sign in with Google credentials';
 }
