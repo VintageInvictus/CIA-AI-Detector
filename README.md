@@ -36,7 +36,7 @@ Nine signals. No single one means much; the result rises only when several agree
 | `index.html` | The page |
 | `styles.css` | The look (colors, fonts, layout, light and dark mode) |
 | `app.js` | The analysis and everything interactive |
-| `favicon.svg` | The browser-tab icon |
+| `assets/` | The group seal: logo, browser-tab icons and link-preview image |
 
 The `.claude` folder is only for previewing on this computer. Don't upload it.
 
@@ -48,7 +48,7 @@ The `.claude` folder is only for previewing on this computer. Don't upload it.
    - Choose **Public**. Free GitHub Pages needs a public repository. Only the tool's code is public; nothing anyone pastes into the tool is ever stored there.
    - Click **Create repository**.
 3. On the new, empty repository page, click **uploading an existing file**.
-4. Drag in `index.html`, `styles.css`, `app.js`, `favicon.svg` and `README.md`. Click **Commit changes**.
+4. Drag in `index.html`, `privacy.html`, `styles.css`, `app.js`, `README.md` and the `assets` folder. Click **Commit changes**.
 5. Go to **Settings**, then **Pages** (left sidebar).
    - Under **Build and deployment**, set **Source** to **Deploy from a branch**.
    - Set **Branch** to **main** and the folder to **/ (root)**. Click **Save**.
