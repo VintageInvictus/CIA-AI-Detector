@@ -795,7 +795,12 @@ $('#copyReport').addEventListener('click', () => {
 // so the public code never contains anyone's email address. To add someone, hash their email the same way and add a line.
 // clearance is optional and defaults to High Command.
 const ROSTER = {
-  '035fb2e464301bd183b4d44f3022266bf155e35c7b1b5018aed73098c6f2f052': { rank: 'Chief of Intelligence Staff', name: 'VintInvictus', clearance: 'Executive Leadership' }
+  '035fb2e464301bd183b4d44f3022266bf155e35c7b1b5018aed73098c6f2f052': { rank: 'Chief of Intelligence Staff', name: 'VintInvictus', clearance: 'Executive Leadership' },
+  '47986e71a3ac9c62293256158e6c9b2ecdf3be493337bfc53fa95620fd0f97eb': { rank: 'Chief Liaison', name: 'GiovaInvictus', clearance: 'OFIR High Command' },
+  'ed153d9c0f8f99c1785ad5f4507bc081b799e5e222fd105cb1ec946516ce5314': { rank: 'Principal Emissary', name: 'rvtlz', clearance: 'OFIR High Command' },
+  'b31994e93b949b4cf53c723ffd3b4864a456911239674542a4d1c1596a3377bb': { rank: 'Deputy Component Director', name: 'D17Neptune', clearance: 'OFIR Headquarters' },
+  '11f8cf817a1e910e6734f4e318eb0bc455e939e9b888f15ed764f51b93a3e440': { rank: 'Chief Liaison', name: 'MythicalPresto', clearance: 'OFIR High Command' },
+  '8141b4452a8b07a1e8397f782f1e3ea58accaea4f01fe72b80b150a3d4669b23': { rank: 'Principal Emissary', name: 'zieahnwwechampion', clearance: 'OFIR High Command' }
 };
 async function rosterLookup(email) {
   const data = new TextEncoder().encode('cad-roster-v1:' + email.trim().toLowerCase());
