@@ -646,8 +646,8 @@ function run() {
     const [t, s] = BANDS.none;
     $('#stamp').className = 'stamp band-none'; $('#stamp').innerHTML = `${t}<small>${s}</small>`;
     $('#summary').textContent = 'Pick an applicant to begin.'; $('#needle').style.left = '0%'; $('#indexLine').textContent = '';
-    ['#signals', '#baseTable', '#baseSummary', '#per', '#marked', '#followups', '#warnings'].forEach(id => { $(id).innerHTML = ''; });
-    $('#baseSec').hidden = true; $('#perSec').hidden = true; lastReport = ''; reportParts = []; renderReportParts(); announce('No answers to screen.');
+    ['#signals', '#baseTable', '#baseSummary', '#marked', '#followups', '#warnings'].forEach(id => { $(id).innerHTML = ''; });
+    $('#baseSec').hidden = true; lastReport = ''; announce('No answers to screen.');
     return;
   }
 
@@ -694,14 +694,6 @@ function run() {
       res.cmp.rows.map(r => `<tr class="${r.flag ? 'gap' : ''}"><td>${esc(r.label)}</td><td class="num">${esc(r.fmt(r.b))}</td><td class="num">${esc(r.fmt(r.a))}</td><td class="num">${esc(diffLabel(r.b, r.a))}${r.flag ? ' <span class="flag y">Big gap</span>' : ''}</td></tr>`).join('') + '</tbody>';
   }
 
-  // Per answer: number and band word as well as bar color
-  $('#perSec').hidden = perRes.length < 2;
-  $('#per').innerHTML = perRes.map(x => {
-    const b = bandOf(x.r.index);
-    const col = b === 'high' ? 'var(--color-bad)' : b === 'mid' ? 'var(--color-warn)' : 'var(--color-ok)';
-    return `<div class="per-row"><span class="q" title="${esc(x.q)}">Q${x.i + 1}${x.q ? ' · ' + esc(x.q) : ''}</span><div class="bar" aria-hidden="true"><b style="width:${Math.max(3, x.r.index)}%;background:${col}"></b></div><span class="n">${x.r.index} · ${BAND_SHORT[b]}</span></div>`;
-  }).join('');
-
   // Marked text
   $('#marked').innerHTML = perRes.map(x => `<div class="marked-item"><span class="mq">Q${x.i + 1}${x.q ? ' · ' + esc(x.q) : ''}</span>${markText(x.a, x.r.spans)}</div>`).join('');
 
@@ -727,100 +719,62 @@ function run() {
     if (tri) qs.push(`You listed “${tri[0]}”. Which of those actually describes you best, and when have you shown it here?`);
     return { x, qs: qs.slice(0, 3) };
   });
-  const general = [
-    'How long did the application take you, and did anyone or anything help you write it?',
-    'Answer this now in the ticket, within 5 minutes: “Describe the last training or patrol you attended and one thing you would change about it.”'
-  ];
   const label = x => `Q${x.i + 1}${x.q ? ' · ' + esc(x.q) : ''}`;
   $('#followups').innerHTML =
     (groups.length ? groups.map(g => `<div class="fu-group"><p class="fu-q">${label(g.x)}</p><ol>${g.qs.map(q => `<li>${esc(q)}</li>`).join('')}</ol></div>`).join('')
-      : '<p class="hint">No single answer stands out.</p>')
-    + `<div class="fu-group"><p class="fu-q">Any application</p><ol>${general.map(q => `<li>${esc(q)}</li>`).join('')}</ol></div>`;
+      : '<p class="hint">No single answer stands out.</p>');
 
-  // Detailed report for Discord, built as blocks so it can be split under Discord's 2,000-character limit.
+  // Report for Discord. It always fits one message (2,000 characters without Nitro):
+  // if the full version is too long, it is trimmed step by step, least important detail first.
   const name = state.applicant.trim() || 'Unnamed applicant';
-  const quoteList = arr => arr.map(v => `“${v}”`).join(', ');
-  const blocks = [];
-  blocks.push([
-    `## AI screening: ${name}`,
-    source ? `Form: ${source.name}${state.submitted ? ` · submitted ${state.submitted}` : ''}` : '',
-    `**Result: ${t}** · index ${res.index}/100 · ${res.strongCount} strong signal${res.strongCount === 1 ? '' : 's'} · ${res.W} words · ${hasBase ? 'compared with their Discord messages' : 'no Discord messages compared'}`,
-    $('#summary').textContent,
-    '_Not proof. Verify with the applicant before denying._'
-  ].filter(Boolean));
-  blocks.push(['### Signals', ...sorted.map(x => `- **${x.name}** (${Math.round(x.strength * 5)}/5): ${x.detail}`)]);
-  if (hasBase && res.cmp) {
-    blocks.push(['### Discord vs. application', $('#baseSummary').textContent,
-      ...res.cmp.rows.map(r => `- ${r.label}: Discord ${r.fmt(r.b)} → application ${r.fmt(r.a)} (${diffLabel(r.b, r.a)})${r.flag ? ' · **big gap**' : ''}`)]);
-  }
-  perRes.forEach((x, k) => {
-    const uniq = c => { const seen = new Map(); x.r.spans.filter(sp => sp.c === c).forEach(sp => { if (!seen.has(sp.w.toLowerCase())) seen.set(sp.w.toLowerCase(), sp.w); }); return [...seen.values()]; };
-    const words = [...uniq('v'), ...uniq('m')], phrases = uniq('p');
-    const other = x.r.sig.filter(z => z.strength >= 0.5 && !['vocab', 'phrase'].includes(z.id)).map(z => SHORT[z.id]);
-    const lines = [`**Q${x.i + 1} · ${x.q || 'Question ' + (x.i + 1)}**`, `Score ${x.r.index}/100 (${BAND_SHORT[bandOf(x.r.index)]}) · ${x.r.W} words`];
-    if (words.length) lines.push(`- AI-typical words: ${words.join(', ')}`);
-    if (phrases.length) lines.push(`- Stock phrases: ${quoteList(phrases)}`);
-    if (other.length) lines.push(`- Also: ${other.join(', ')}`);
-    if (!words.length && !phrases.length && !other.length) lines.push('- Nothing notable.');
-    if (k === 0) lines.unshift('### Per answer');
-    blocks.push(lines);
-  });
-  groups.forEach((g, k) => {
-    const lines = [`**Q${g.x.i + 1} · ${g.x.q || 'Question ' + (g.x.i + 1)}**`, ...g.qs.map((q, n) => `${n + 1}. ${q}`)];
-    if (k === 0) lines.unshift('### Follow-up questions');
-    blocks.push(lines);
-  });
-  blocks.push([groups.length ? '**Any application**' : '### Follow-up questions\n**Any application**', ...general.map((q, n) => `${n + 1}. ${q}`)]);
-  blocks.push(['-# Screening indicators only. The decision depends on the follow-up.']);
-  lastReport = blocks.map(l => l.join('\n')).join('\n\n');
-  reportParts = packReport(blocks);
-  renderReportParts();
-}
-
-// Splits the report into messages under Discord's 2,000-character limit, breaking between sections where possible.
-function packReport(blocks, limit = 1900) {
-  const parts = [];
-  let cur = '';
-  const add = (txt, sep) => {
-    if (cur && (cur + sep + txt).length > limit) { parts.push(cur); cur = ''; }
-    cur = cur ? cur + sep + txt : txt;
+  const shortQ = q => q.length > 70 ? q.slice(0, 67) + '…' : q;
+  const clipQuotes = (q, n) => q.replace(/“([^”]*)”/g, (m, inner) => inner.length > n ? `“${inner.slice(0, n - 1)}…”` : m);
+  const RECALL = 'Without looking, tell me in your own words what you wrote.';
+  const buildReport = lvl => {
+    const quote = lvl >= 2 ? 80 : lvl >= 1 ? 110 : 160, perQ = lvl >= 2 ? 1 : 2, maxQ = lvl >= 3 ? 3 : 6;
+    const out = [
+      `## AI screening: ${name}`,
+      source ? `Form: ${source.name}${state.submitted ? ` · submitted ${state.submitted}` : ''}` : '',
+      `**Result: ${t}** · ${res.index}/100 · ${res.strongCount} strong signal${res.strongCount === 1 ? '' : 's'} · ${res.W} words · ${hasBase ? 'compared with Discord' : 'no Discord messages'}`,
+      $('#summary').textContent,
+      '', '**Signals**'
+    ];
+    if (lvl >= 3) out.push(sorted.filter(x => x.strength > 0).map(x => `${x.name} ${Math.round(x.strength * 5)}/5`).join(' · ') || 'None found.');
+    else out.push(...sorted.filter(x => lvl >= 1 ? x.strength > 0 : true).map(x => `- ${x.name} (${Math.round(x.strength * 5)}/5): ${x.detail}`));
+    if (hasBase && res.cmp) {
+      out.push('', '**Discord vs. application**', $('#baseSummary').textContent);
+      if (lvl < 2) out.push(...res.cmp.flagged.map(r => `- ${r.label}: ${r.fmt(r.b)} → ${r.fmt(r.a)} (${diffLabel(r.b, r.a)})`));
+    }
+    out.push('', '**Follow-up questions**');
+    if (!groups.length) out.push('No single answer stands out.');
+    else {
+      out.push(`For each question below, first ask: “${RECALL}”`);
+      const top = [...groups].sort((x, y) => y.x.r.index - x.x.r.index).slice(0, maxQ).sort((x, y) => x.x.i - y.x.i);
+      top.forEach(g => {
+        out.push(`**Q${g.x.i + 1}** · ${shortQ(g.x.q || 'Question ' + (g.x.i + 1))} (${g.x.r.index}/100)`);
+        g.qs.slice(1, 1 + perQ).forEach(q => out.push(`- ${clipQuotes(q, quote)}`));
+      });
+      if (groups.length > top.length) out.push(`+${groups.length - top.length} more flagged question${groups.length - top.length === 1 ? '' : 's'} on the site.`);
+    }
+    return out.filter(Boolean).join('\n').replace(/\n(\*\*(Signals|Discord vs|Follow-up))/g, '\n\n$1');
   };
-  for (const lines of blocks) {
-    const blk = lines.join('\n');
-    if (blk.length <= limit) add(blk, '\n\n');
-    else lines.forEach((ln, k) => add(ln, k ? '\n' : '\n\n'));
-  }
-  if (cur) parts.push(cur);
-  return parts;
-}
-let reportParts = [];
-function renderReportParts() {
-  const box = $('#reportParts');
-  box.hidden = reportParts.length < 2;
-  if (box.hidden) { box.innerHTML = ''; return; }
-  box.innerHTML = `<span>Longer than one Discord message (2,000 characters). Copy it in parts:</span>` +
-    reportParts.map((_, k) => `<button type="button" class="btn" data-part="${k}">Part ${k + 1} of ${reportParts.length}</button>`).join('');
+  const LIMIT = 2000;
+  let report = buildReport(0);
+  for (let lvl = 1; report.length > LIMIT && lvl <= 4; lvl++) report = buildReport(lvl);
+  if (report.length > LIMIT) report = report.slice(0, LIMIT - 1) + '…';
+  lastReport = report;
 }
 
-function copyText(text, okMsg) {
+$('#copyReport').addEventListener('click', () => {
   const fb = $('#copyFallback'), toast = $('#toast');
-  const fallback = () => { fb.hidden = false; fb.value = text; fb.focus(); fb.select(); toast.textContent = 'Copying was blocked. The text is selected below; press Ctrl+C.'; };
+  if (!lastReport) { toast.textContent = 'Nothing to copy yet. Pick an applicant first.'; return; }
+  const fallback = () => { fb.hidden = false; fb.value = lastReport; fb.focus(); fb.select(); toast.textContent = 'Copying was blocked. The report is selected below; press Ctrl+C.'; };
   try {
-    navigator.clipboard.writeText(text).then(() => {
-      fb.hidden = true; toast.textContent = okMsg;
-      setTimeout(() => { if (toast.textContent === okMsg) toast.textContent = ''; }, 3500);
+    navigator.clipboard.writeText(lastReport).then(() => {
+      fb.hidden = true; toast.textContent = 'Report copied. It fits in one Discord message.';
+      setTimeout(() => { toast.textContent = ''; }, 3500);
     }, fallback);
   } catch (e) { fallback(); }
-}
-$('#copyReport').addEventListener('click', () => {
-  if (!lastReport) { $('#toast').textContent = 'Nothing to copy yet. Pick an applicant first.'; return; }
-  copyText(lastReport, reportParts.length > 1
-    ? `Full report copied (${lastReport.length.toLocaleString()} characters). Without Nitro, Discord sends that as a file, so use the parts below for messages.`
-    : 'Report copied. Paste it into your staff channel.');
-});
-$('#reportParts').addEventListener('click', e => {
-  const btn = e.target.closest('[data-part]');
-  if (btn) copyText(reportParts[+btn.dataset.part], `Part ${+btn.dataset.part + 1} of ${reportParts.length} copied.`);
 });
 
 renderAnswers();
