@@ -2,7 +2,7 @@
 
 A screening tool for recruitment applications. Load your directorate's Google Form responses (sign in with Google, or drop the export file), pick an applicant and paste some of their Discord messages. It marks the patterns AI writing tends to leave, compares the application with how they normally write, and suggests follow-up questions for each answer.
 
-Everything runs in the visitor's browser. Nothing that is pasted is uploaded or stored on a server. Each division's name and terms are saved only in that person's own browser.
+Everything runs in the visitor's browser. Nothing that is pasted is uploaded or stored on a server.
 
 The result is a screening indicator, not proof. Deny based on the follow-up, never on the score alone.
 
@@ -17,7 +17,7 @@ Nine signals. No single one means much; the result rises only when several agree
 | Pasted formatting | High | Literal `**bold**` or `#` markers, which Google Forms doesn't render |
 | Stock application phrases | Medium | "valuable asset", "commitment to excellence", "this experience taught me" |
 | Even sentence rhythm | Medium | Sentences that are all about the same length |
-| Little concrete detail | Medium | Few names, numbers, dates or division terms |
+| Little concrete detail | Medium | Few names, numbers, dates or places |
 | Em dashes | Low | A common ChatGPT habit, though some phones insert them too |
 | Lists of three | Low | Repeated "X, Y, and Z" lists of qualities |
 | No casual traces | Low | Flawless capitalization and punctuation |
