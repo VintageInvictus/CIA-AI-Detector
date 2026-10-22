@@ -788,7 +788,7 @@ $('#copyReport').addEventListener('click', () => {
   const fallback = () => { fb.hidden = false; fb.value = lastReport; fb.focus(); fb.select(); toast.textContent = 'Copying was blocked. The report is selected below; press Ctrl+C.'; };
   try {
     navigator.clipboard.writeText(lastReport).then(() => {
-      fb.hidden = true; toast.textContent = 'Report copied. It fits in one Discord message.';
+      fb.hidden = true; toast.textContent = 'Report copied.';
       setTimeout(() => { toast.textContent = ''; }, 3500);
     }, fallback);
   } catch (e) { fallback(); }
